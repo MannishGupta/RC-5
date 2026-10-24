@@ -1,0 +1,41 @@
+RC 5.1.8 — restore after accidental 260924.xx overlay
+=====================================================
+
+WHAT WENT WRONG
+  A date-stamped arthsathi pack (260924.06) was deployed over the commercial
+  RC 5.1.x tree. That pack used a different shell and empty sample data/, so:
+  - Today dashboard disappeared (validTabs never included "today")
+  - DATA_PATH may have pointed at root data/ instead of tenants/arthsathi/data
+  - Login keys (blsbls / alliswell) stopped matching because auth_config.php
+    is read from DATA_PATH (tenant data), not from the code pack
+
+SAFE DEPLOY
+  1. Backup the LIVE server first:
+       - entire /rc folder, especially tenants/ and data/
+  2. Extract this 5.1.8 zip OVER the code tree.
+  3. NEVER overwrite:
+       tenants/*/data/**
+       data/auth_config.php
+       data/config/auth_config.php
+       tenants/map.json   (if it already exists and is correct)
+  4. Confirm tenants/map.json maps rc.arthsathi.com → arthsathi
+  5. Confirm file exists:
+       tenants/arthsathi/data/auth_config.php
+     (or data/auth_config.php if single-tenant mode)
+  6. Hard-refresh browser; open ?tab=today
+  7. Delete diag.php after checks
+
+PASSWORDS (blsbls / alliswell)
+  These only work if the bcrypt hashes in auth_config.php still match.
+  If auth_config was deleted/replaced:
+  - Login will show first-run setup (needs data/.setup_token on that tenant)
+  - OR restore auth_config.php from backup
+  - Factory plaintext is NOT stored in the code pack (by design)
+
+DATA NOT VISIBLE
+  Almost always means AppDB is reading the wrong DATA_PATH.
+  After deploy, check Monitor / diag: TENANT_ID and DATA_PATH must be
+  .../tenants/arthsathi/data for host rc.arthsathi.com.
+
+FEATURES
+  No modules were removed. Today + Runners restored to shell navigation.

@@ -1,0 +1,25 @@
+# Resource Centre (RC)
+# https://arthsathi.com — product by Arthsathi Limited (India)
+
+> Multi-tenant corporate directory, compliance, media kit, construction progress, and India-focused tools (commodity prices, Choghadiya, numerology). Flat-file PHP; tenants resolved by hostname.
+
+## Primary surfaces
+- / — Tenant dashboard (authenticated modules)
+- /?tab=team — Human Capital Index (directory)
+- /?tab=terms — Governance / Privacy / DPDP
+- /?tab=status or /status/ — Construction progress (when enabled)
+- /metals.php — Delhi NCR & MCX commodity prices (JSON: ?format=json)
+- /choghadiya.php — Choghadiya / panchang windows (JSON: ?format=json)
+- /health.php — Liveness probe (no tenant secrets)
+
+## Public cards
+- /?card=business&slug={slug} — Digital business card
+- /?card=visiting&slug={slug} — Visiting card view
+
+## Policy
+- Personal data is tenant-controlled. Prefer official public pages and DPDP notice (?tab=terms / privacy).
+- Do not scrape authenticated tabs or /data/, /tenants/, /tools/, /app/.
+- Locale: en-IN / hi-IN · Timezone: Asia/Kolkata (IST) · Currency: INR (₹)
+
+## Contact
+- Developer: Arthsathi Limited — https://arthsathi.com

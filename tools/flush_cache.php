@@ -1,0 +1,35 @@
+<?php
+// Version: 5.0.4 (PHP 8.5.12+ remaining modules)
+ 
+ 
+ 
+ 
+ 
+
+declare(strict_types=1);
+
+$rootPath = file_exists(__DIR__ . '/app/bootstrap.php') ? __DIR__ : dirname(__DIR__);
+define('BASE_PATH', $rootPath);
+require_once BASE_PATH . '/app/tenant_bootstrap.php';
+ 
+if (!defined('DATA_PATH')) define('DATA_PATH', BASE_PATH . '/data');
+if (!defined('SESSION_PATH')) define('SESSION_PATH', DATA_PATH . '/sessions');
+
+if (!file_exists(SESSION_PATH)) @mkdir(SESSION_PATH, 0755, true);
+require_once BASE_PATH . '/app/bootstrap.php';
+
+if (session_status() === PHP_SESSION_NONE) AppAuth::initSession();
+if (empty($_SESSION['user']) || !in_array((string)$_SESSION['user'], ['admin','super_admin','crm'], true)) {
+    http_response_code(403);
+    die("<div style='padding:20px;font-family:sans-serif;color:red;font-weight:bold;'>Access Denied. Please log in via the main dashboard.</div>");
+}
+
+header('Content-Type: text/plain; charset=utf-8');
+
+if (function_exists('opcache_reset')) {
+    opcache_reset();
+    if (class_exists('AppLog')) AppLog::info('OPcache flushed via flush_cache.php', ['by' => $_SESSION['user']]);
+    echo "Cache cleared.\n";
+} else {
+    echo "OPcache is not enabled on this host — nothing to flush.\n";
+}

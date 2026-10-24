@@ -1,0 +1,79 @@
+# Resource Centre — static fallback (prefer /robots.php when rewrite is active)
+User-agent: *
+Allow: /
+Allow: /?tab=team
+Allow: /?tab=bank
+Allow: /?tab=docs
+Allow: /?tab=locations
+Allow: /?tab=events
+Allow: /?tab=statutory
+Allow: /?tab=status
+Allow: /?tab=terms
+Allow: /?tab=mediakit
+Allow: /cards/
+Allow: /images/
+Allow: /assets/
+Allow: /status/
+Allow: /metals.php
+Allow: /choghadiya.php
+Allow: /llms.txt
+Allow: /sitemap.php
+Allow: /health.php
+
+Disallow: /?tab=monitor
+Disallow: /?tab=opt
+Disallow: /?tab=settings
+Disallow: /?tab=company
+Disallow: /?tab=tenants
+Disallow: /?tab=cctv
+Disallow: /?tab=leads
+Disallow: /?tab=access
+Disallow: /data/
+Disallow: /tenants/
+Disallow: /app/
+Disallow: /tools/
+Disallow: /storage/
+Disallow: /tests/
+Disallow: /sql/
+
+# AI assistants — public content only
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+Allow: /sitemap.php
+Disallow: /data/
+Disallow: /tenants/
+Disallow: /app/
+Disallow: /tools/
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /llms.txt
+Disallow: /data/
+Disallow: /tenants/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Disallow: /data/
+Disallow: /tenants/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Disallow: /data/
+Disallow: /tenants/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+Disallow: /data/
+Disallow: /tenants/
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /llms.txt
+Disallow: /data/
+Disallow: /tenants/
+
+Sitemap: /sitemap.php

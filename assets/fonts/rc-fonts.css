@@ -1,0 +1,46 @@
+/* Version: 3.2.2
+ * Single English UI font + single Hindi font (max compatibility, self-hosted).
+ *
+ * English: system UI (Segoe UI on Windows, San Francisco on Apple, Roboto on Android)
+ * Hindi:   Noto Sans Devanagari (bundled TTFs below)
+ */
+@font-face {
+  font-family: "Noto Sans Devanagari";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/noto-sans-devanagari/noto-400.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Noto Sans Devanagari";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/assets/fonts/noto-sans-devanagari/noto-600.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Noto Sans Devanagari";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/noto-sans-devanagari/noto-700.ttf") format("truetype");
+}
+
+:root {
+  --rc-font-en: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --rc-font-hi: "Noto Sans Devanagari", system-ui, sans-serif;
+  --rc-font: var(--rc-font-en);
+}
+
+html, body {
+  font-family: var(--rc-font-en);
+}
+
+/* Hindi / Devanagari content */
+:lang(hi),
+html[lang="hi"],
+html[lang="hi"] body,
+.rc-lang-hi,
+.rc-hi {
+  font-family: var(--rc-font-hi);
+}

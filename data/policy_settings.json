@@ -1,0 +1,11 @@
+{
+    "master_tracking_email": "",
+    "working_hours": {
+        "start": "09:00",
+        "end": "19:00",
+        "timezone": "Asia/Kolkata"
+    },
+    "mandatory_designations": [],
+    "mandatory_departments": [],
+    "heartbeat_timeout_minutes": 10
+}

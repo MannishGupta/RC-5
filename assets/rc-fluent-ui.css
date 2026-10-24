@@ -1,0 +1,207 @@
+/* Resource Centre — Fluent polish layer 4.2.0 (WinUI Gallery–inspired patterns on web) */
+:root {
+  --rc-fluent-radius: 8px;
+  --rc-fluent-radius-lg: 12px;
+  --rc-fluent-shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  --rc-fluent-shadow-hover: 0 4px 16px rgba(0,0,0,.10);
+  --rc-row-hover: color-mix(in srgb, var(--rc-accent, #0078D4) 6%, var(--rc-card, #fff));
+  --rc-row-band: color-mix(in srgb, var(--rc-paper, #faf9f8) 88%, var(--rc-ink, #201f1e));
+  --rc-ease: cubic-bezier(0.33, 0, 0.1, 1);
+}
+
+/* Smoother surfaces */
+.rc-card, .rc-vcard, .rc-sales-print .rounded-xl, .rc-fluent-panel {
+  border-radius: var(--rc-fluent-radius-lg) !important;
+  box-shadow: var(--rc-fluent-shadow);
+  transition: box-shadow .2s var(--rc-ease), border-color .2s var(--rc-ease), transform .2s var(--rc-ease);
+}
+.rc-vcard:hover { box-shadow: var(--rc-fluent-shadow-hover); }
+
+/* Fluent data table */
+.rc-fluent-table-wrap {
+  border: 1px solid var(--rc-border, #e1dfdd);
+  border-radius: var(--rc-fluent-radius-lg);
+  background: var(--rc-card, #fff);
+  overflow: auto;
+  max-height: min(70vh, 720px);
+  box-shadow: var(--rc-fluent-shadow);
+}
+.rc-fluent-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  color: var(--rc-ink, #201f1e);
+}
+.rc-fluent-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--rc-paper, #f3f2f1);
+  color: var(--rc-ink-muted, #605e5c);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rc-border, #e1dfdd);
+  white-space: nowrap;
+  user-select: none;
+}
+.rc-fluent-table thead th.rc-th-sortable { cursor: pointer; }
+.rc-fluent-table thead th.rc-th-sortable:hover { color: var(--rc-accent, #0078D4); }
+.rc-fluent-table thead th.rc-th-sticky {
+  left: 0;
+  z-index: 3;
+  box-shadow: 1px 0 0 var(--rc-border, #e1dfdd);
+}
+.rc-fluent-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--rc-border, #e1dfdd) 70%, transparent);
+  vertical-align: middle;
+}
+.rc-fluent-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--rc-paper, #faf9f8) 55%, transparent);
+}
+.rc-fluent-table tbody tr:hover td {
+  background: var(--rc-row-hover);
+}
+.rc-fluent-table tbody tr.is-selected td {
+  background: color-mix(in srgb, var(--rc-accent, #0078D4) 12%, var(--rc-card, #fff));
+  box-shadow: inset 3px 0 0 var(--rc-accent, #0078D4);
+}
+.rc-fluent-table td.rc-td-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: inherit;
+  font-weight: 600;
+}
+.rc-fluent-table .rc-num { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* Density */
+.rc-fluent-table.rc-density-compact thead th,
+.rc-fluent-table.rc-density-compact tbody td { padding: 6px 10px; font-size: 0.75rem; }
+
+/* Pager (Fluent style) */
+.rc-fluent-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4px;
+  font-size: 0.75rem;
+  color: var(--rc-ink-muted, #605e5c);
+}
+.rc-fluent-pager .rc-pager-btns {
+  display: inline-flex;
+  gap: 4px;
+}
+.rc-fluent-pager button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--rc-border, #e1dfdd);
+  background: var(--rc-card, #fff);
+  color: var(--rc-ink, #201f1e);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s var(--rc-ease), border-color .15s var(--rc-ease);
+}
+.rc-fluent-pager button:hover:not(:disabled) {
+  border-color: var(--rc-accent, #0078D4);
+  color: var(--rc-accent, #0078D4);
+}
+.rc-fluent-pager button:disabled { opacity: .4; cursor: not-allowed; }
+.rc-fluent-pager button.is-active {
+  background: var(--rc-accent, #0078D4);
+  border-color: var(--rc-accent, #0078D4);
+  color: #fff;
+}
+
+/* Chart panel */
+.rc-fluent-chart-card {
+  border: 1px solid var(--rc-border, #e1dfdd);
+  border-radius: var(--rc-fluent-radius-lg);
+  background: var(--rc-card, #fff);
+  padding: 12px 14px 8px;
+  box-shadow: var(--rc-fluent-shadow);
+  min-height: 200px;
+}
+.rc-fluent-chart-card h3 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--rc-ink, #201f1e);
+  margin: 0 0 8px;
+}
+.rc-fluent-chart-card canvas,
+.rc-fluent-chart-card .rc-sales-chart {
+  width: 100% !important;
+  min-height: 168px;
+}
+
+/* View mode toggle */
+.rc-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--rc-border, #e1dfdd);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.rc-view-toggle button {
+  height: 32px;
+  min-width: 36px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--rc-card, #fff);
+  color: var(--rc-ink-muted, #605e5c);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.rc-view-toggle button.is-on {
+  background: color-mix(in srgb, var(--rc-accent, #0078D4) 14%, var(--rc-card, #fff));
+  color: var(--rc-accent, #0078D4);
+  font-weight: 700;
+}
+
+/* KPI strip */
+.rc-fluent-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.rc-fluent-kpi {
+  border: 1px solid var(--rc-border, #e1dfdd);
+  border-radius: var(--rc-fluent-radius);
+  background: var(--rc-card, #fff);
+  padding: 12px 14px;
+  box-shadow: var(--rc-fluent-shadow);
+}
+.rc-fluent-kpi .label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--rc-ink-muted, #605e5c);
+  font-weight: 600;
+}
+.rc-fluent-kpi .value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--rc-ink, #201f1e);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+/* Theme-aware team chips already use vars; tighten */
+.rc-team-chip {
+  transition: background .15s var(--rc-ease), border-color .15s var(--rc-ease), color .15s var(--rc-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-card, .rc-vcard, .rc-team-chip, .rc-fluent-pager button {
+    transition: none !important;
+  }
+}

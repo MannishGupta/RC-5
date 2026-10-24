@@ -1,0 +1,8 @@
+{
+  "hosts": {
+    "rc.arthsathi.com": "arthsathi",
+    "arthsathi.com": "arthsathi",
+    "www.arthsathi.com": "arthsathi"
+  },
+  "default": "arthsathi"
+}
