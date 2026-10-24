@@ -14,7 +14,9 @@ if (!defined('RT_ROOT')) {
 
  
 $teamContacts = [];
-$teamFile = RT_ROOT . '/data/team.json';
+$teamFile = (defined('DATA_PATH') && DATA_PATH !== ''
+    ? rtrim(str_replace('\\', '/', (string)DATA_PATH), '/')
+    : (RT_ROOT . '/data')) . '/team.json';
 if (is_file($teamFile)) {
     $traw = json_decode((string) @file_get_contents($teamFile), true);
     if (isset($traw['items']) && is_array($traw['items'])) {

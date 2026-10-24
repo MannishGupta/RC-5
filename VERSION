@@ -1,3 +1,19 @@
+5.1.10 (2026-10-24) — Double widget fix + tenant path hygiene
+- dashboard: widgets only on team/events (Today owns strip in tab_today.php)
+- public_live_widgets + value_birthday_strip: single-render guards
+- runners.php / runners_ui / tab_tracking: tenant DATA_PATH for team/state
+- RolePack + login: company/roles via DATA_PATH
+
+5.1.9 (2026-10-24) — Full audit on 5.1.8 baseline
+- runners.php: tenant RUNNERS_DATA_PATH/DATA_PATH (fixes empty data under multi-tenant)
+- runners.php: exclusive updateJsonFile RMW for state/history/tokens/rate/violations
+- runners.php: tracking_token + rate limits on field pings; admin/CSRF on management APIs
+- runners.php: 90-day history retention; Indian English API errors
+- Password change workflows untouched
+- Vendor pins unchanged (already current: Alpine 3.17.4, FA 7.3.1, Bootstrap 5.3.8, Chart 4.x, Quill 2.0.3, SheetJS 0.20.3)
+- a11y: skip-link, focus-visible, contrast-lock, live region already present; retained
+- Today/runners shell restore from 5.1.8 retained
+
 5.1.8 (2026-10-24) — Production restore + Today tab + data path clarity
 - ModuleRegistry::filterTabs MERGES always-on tabs (today, sales, …) instead of only filtering
 - dashboard: today/runners in validTabs + customTabs + titles; widgets on Today
@@ -8,178 +24,3 @@
 5.1.7 (2026-10-23) — Optimiser: all 6 hardening recommendations
 - Global media path heal (team, company, mediakit, locations, docs, cartags, bank, events)
 - Final media link verification with per-namespace missing report
-- Construction Status image optimise (data/status, keep_format)
-- Media Kit keep_format enforced (no forced WebP rename)
-- Team master FK resolve (designation/department/location → canonical ids + names)
-- Structured summary in run() return + SUMMARY log line
-
-5.1.6 (2026-10-23) — Print directory: no QR
-- tools/print_directory.php: removed QR blocks, easy.qrcode script, VcardBuilder require for print
-- Cards remain photo + name + designation/department/location/phone/email only
-
-5.1.5 (2026-10-23) — Unresolved master codes closed globally
-- AppLookup: isRawCode(), resolve(), recordsByKey(); map() adds lowercase id/slug/code keys and skips code-like names
-- bootstrap public member enrich: designation/department/location via resolve + full location by code/slug
-- tools/export_team_csv.php: same resolve path as print (no id-only maps)
-- tools/export_vcf.php: resolve + locations recordsByKey
-- app/VcardBuilder.php: TITLE/ORG dept via AppLookup; strip raw codes
-
-5.1.4 (2026-10-23) — Print directory data fix
-- tools/print_directory.php: define desigName/deptName/locName (AppLookup::map + lowercase keys)
-- resolve designation/department/location like on-screen team directory; never print raw codes (desig_2)
-- rank sort uses designation_id/code with case-insensitive master keys
-- Auth gate unchanged (must be signed in)
-
-5.1.3 (2026-10-23)
-- diag.php: extended shared-host probe (session, outbound HTTPS, disk, OPcache, tenant map, php.ini paths)
-- Header stamp: IST/UTC time, server/client IP, host, public URL
-- Full tree package for deploy (do not overwrite tenants/*/data)
-
-5.1.1 (2026-10-23)
-- diag.php: shared-hosting requirements probe (DOM, GD, curl, limits, writability)
-- Delete after use; optional DIAG_KEY lock
-
-5.1.0 (2026-10-23) — Commercial launch
-- Final launch audit: 283 PHP files lint clean; zero deprecated curl_close/imagedestroy/finfo_close
-- api_value backup stamp: RESOURCE CENTRE (RC) — DATA BACKUP (no Fusion product string)
-- web.config: X-Frame-Options SAMEORIGIN + Referrer-Policy strict-origin-when-cross-origin
-- Restored .github/workflows/rc-safety-check.yml (PHP 8.5)
-- .gitignore: auth_config, SA JSON, psi_token, sessions/logs/backups
-- docs/COMMERCIAL_LAUNCH_CHECKLIST.md
-
-5.0.4 (2026-10-23) — Remaining modules closed
-- strict_types + version on: PhpQr, Schema, print_directory, export_team_csv, runners_ui, status/actions, status legacy redirects, tools/diagnostics|file_tree|flush_cache, svg_sanitizer_test
-- Zero remaining curl_close/imagedestroy/finfo_close/E_STRICT/(integer)/create_function across app tree
-- Third-party phpqrcode libraries still untouched by design
-
-5.0.3 (2026-10-22) — Remaining ~2000-line modules
-- status/lib.php, tab_mediakit, dashboard, record_editor, tab_monitor, tab_mobile_matrix, status admin/index, business card, cartags: 5.0.3 headers
-- tab_mediakit: recursive media index max depth 4, file cap 2000 (was 5000), display cap 400 assets (OOM guard)
-- status/lib.php: php85_runtime bootstrap when available
-- phpqrcode third-party libs left untouched
-
-5.0.2 (2026-10-22) — Largest PHP files → 8.5.12 idioms
-- index.php: real declare(strict_types=1); PHP gate 8.5.0+; drop E_STRICT; early php85_runtime
-- bootstrap.php / Optimizer.php / status/lib.php: EXIF orientation switch → match()
-- runners.php: action router switch → match()
-- Version headers on janam_patri, dashboard, tab_mediakit, record_editor
-- Platform still requires PHP 8.5.12+ (5.0.0 gate)
-
-5.0.1 (2026-10-22) — Critical-path PHP 8.5 modernization
-- health.php: typed JSON probe, JSON_THROW_ON_ERROR, php version in payload
-- media_serve.php: match()-based MIME map, never-typed deny helper, PathJail + SVG CSP preserved
-- MasterDirectory: array_first() for logo candidate picks
-- VehicleCatalog / PathJail / AiClient / GoogleSheetsClient: version headers + strict where missing
-- metals.php / choghadiya.php: critical-path version markers (API contracts unchanged)
-
-5.0.0 (2026-10-22) — PHP 8.5.12 platform release
-- Requires PHP 8.5.0+ (recommended 8.5.12 security build); runtime gate in app/php85_runtime.php
-- Polyfills array_first()/array_last() when absent; native on 8.5
-- Full-tree deprecation pass retained (curl_close / imagedestroy / finfo_close → unset)
-- reset($a)/end($a) value uses → array_first/array_last where safe
-- GitHub Actions matrix targets PHP 8.5
-- Standalone endpoints (metals, choghadiya, health) load runtime helper
-
-4.5.6 (2026-10-22)
-- Phase B PHP 8.5.12 readiness: remove curl_close (11), finfo_close (14), imagedestroy (39) across 17 files
-- Handles/GdImage/finfo auto-freed on PHP 8+; unset() keeps intent without deprecated no-op calls
-- metals/choghadiya 4.5.5 endpoint contracts unchanged; still PHP 8.2–8.5 compatible
-
-4.5.5 (2026-10-22)
-- PHP 8.5.12 readiness: remove curl_close/curl_multi_close no-op destructors in metals.php
-- metals/choghadiya version headers; keep PHP 8.2+ syntax (no pipe/array_first — breaks 8.2/8.4 hosts)
-- Scriptable v22 metals + v6.4.1 choghadiya API contracts unchanged
-
-4.5.4 (2026-10-22)
-- Optional metals.php JSON hardening for Scriptable v22: ETag/304, compact body, base/total aliases, LIVE status
-- Choghadiya API verified against Scriptable widget v6.4.1 (date=, current, rahu, tithi.number/end, sun)
-- No choghadiya.php schema break required — live feed already matches widget contract
-
-4.5.2 (2026-10-21)
-- Status project logos: no inline onerror JS (HTML leak fix on admin logo update)
-- statusLogoImg rejects path markup; data-alt-src + delegated error handler
-- Numero HTML leak link tag; in-app nav 4.5.0; theme fixes
-
-4.5.0 (2026-10-21)
-- Left pane: Janam/Blood open as in-app tabs (no new window)
-- Team action chips: cards/reports open in right pane (?tab=cardview / janam / blood / numero)
-- Top "Open full page" for status/metals/choghadiya/janam/blood → same-shell tabs
-- Global iframe theme sync with data-theme
-
-4.4.8 (2026-10-21)
-- Locations: card logos use same theme shell as strip (grey/tan container, transparent SVG)
-- Numero tab: form tokens forced to data-theme; OS prefers-color-scheme removed
-- Version bump for cache bust on numerology.css
-
-4.4.3 — 21 Oct 2026
-- choghadiya.php rich UI (Scriptable-style): week strip (selected + 6 days), calendar date picker, prev/next, EN/HI
-- Live Now banner with countdown; Tithi/Paksha cards; Rahu; auspicious windows; day/night tables
-- Calculations unchanged (DAY/NIGHT seq + Rahu segments aligned with Scriptable); ?date= drives server recompute
-- embed=1 + format=json preserved
-
-4.4.2 — 21 Oct 2026
-- choghadiya.php?embed=1: fixed fatal TypeError ($data["date"] is string; use dateInfo.label)
-- Tithi shows short name (Dashami); Paksha separate (Shukla Paksha) — no "Kaal · Tithi: Shukla Paksha · Dashami" mash-up
-- Null-safe day/night/sun/current/corporate for embed + full page
-- frame-ancestors CSP for embed iframes on RC hosts
-- Today hub: Now / Tithi / Rahu on separate lines
-
-4.4.1 — 21 Oct 2026
-- Critical CSS path: only app.css + contrast-lock block first paint
-- Combined rc-shell-defer.css (fluent + tw-pages) loaded non-blocking
-- Removed competing preload of rc-deferred.css
-- WhatsApp helper + tooltips idle-loaded; Today metals/choghadiya after idle
-- Static asset cache 30d (web.config); media_serve immutable 30d
-- Login theme head: deferred fonts + shell CSS
-
-4.4.0 — 21 Oct 2026
-- Full class-level Tailwind rewrite of every tab/page shell (not design tokens only)
-- Shared assets/rc-tw-pages.css: page, header, card, toolbar, table, field, button utilities
-- app/views/partials/tw_page.php helpers for consistent headers/cards/empty states
-- All tab_*.php: rc-page root, standardized page headers (kicker/title/sub), gap over space-y
-- Document/locations/events headers; login loads rc-tw-pages.css
-- Tables/buttons normalized toward rc-table / rc-btn patterns
-
-4.3.1 — 21 Oct 2026
-- Today is default landing tab (no ?tab= → today)
-- Clock / Weather / AQI / Celebrations only on Today (removed from Team & Calendar)
-- Celebrations fit-to-content: wrap shows all events (e.g. 3), 14-day horizon
-- Today hub: Construction, Media Kit, Calendar counts, Quick actions, Auspicious window
-
-4.3.0 — 21 Oct 2026
-- Today tab: daily operating brief (KPIs, celebrations, metals/choghadiya, tenant health)
-- Share packs: team WhatsApp includes company, visiting + digital card links (ASCII-safe)
-- Nav: Today first under Human Capital; command palette entry
-
-4.2.0 — 21 Oct 2026
-- Fluent data tables (Team table/card toggle, sticky name col, zebra, selection)
-- Sales register: Chart.js bar charts + Fluent table styling
-- Shared assets/rc-fluent-ui.css (density, pager, KPI, smoother motion)
-- WinUI Gallery 3.0 patterns adapted for web (not native WinUI)
-
-4.0.0 — 20 Oct 2026 — Commercial launch package (pre-launch audit Phases 1–8)
-
-3.2.62 — Pingdom/Uptrends/mobile: rc-deferred.css (one request), idle tooltip JS, mobile touch targets
-3.2.61 — PageSpeed: long-cache static, gzip, deferred CSS pattern, font-display, SW shell
-3.2.60 — WCAG 2.2 AA: skip links, focus-visible, reduced motion, focus trap, contrast floor
-3.2.60 — WCAG 2.2 AA: skip links, focus-visible, reduced motion, focus trap auto-bind, hit targets, forced-colors, contrast floor, landmarks
-3.2.52 — 17 Oct 2026
-- Tenant Setup readable in reserve (theme tokens)
-- Sales Sheets: SA upload/paste UI; CSRF accepts csrf field; URL normalize; no duplicate SA errors
-- Sales nav forced; Celebrations height; Commodity Prices (7)
-
-3.2.43 — COMPLETE package
-
-Sales MIS (rich)
-- Live Google Sheets sync (service account)
-- MIS KPI strip (units / area / gross YTD + this month)
-- Year filter, project charts, register table, print/PDF
-- Module enable per tenant (sales)
-
-Also included from recent builds
-- Metals: Platinum + Brass, sort ₹/kg high→low
-- Choghadiya rich Fluent UI
-- Weather/AQI CSP fix (Open-Meteo)
-- Sidebar theme+logout single row
-- Media Kit path heal + Delete all
-- Reports theme shells (status/janam/blood/numero)

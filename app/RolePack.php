@@ -5,7 +5,8 @@ final class RolePack
 {
     public static function config(): array
     {
-        $path = BASE_PATH . '/data/value/roles.json';
+        $root = defined('DATA_PATH') && DATA_PATH !== '' ? rtrim(str_replace('\\', '/', (string)DATA_PATH), '/') : (BASE_PATH . '/data');
+        $path = $root . '/value/roles.json';
         if (!is_file($path)) {
             return ['crm_pack' => 'logistics', 'packs' => []];
         }

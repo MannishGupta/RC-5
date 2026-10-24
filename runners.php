@@ -1,11 +1,21 @@
 <?php
-// Version: 5.0.3 (PHP 8.5.12+ remaining ~2k-line modules)
+// Version: 5.1.9 — tenant DATA_PATH, exclusive RMW locks, tracking tokens, rate limits, 90d retention
 declare(strict_types=1);
 
-if (!defined('BASE_PATH')) { define('BASE_PATH', __DIR__); }
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', __DIR__);
+}
 require_once BASE_PATH . '/app/tenant_bootstrap.php';
 
- 
+// Prefer shared AppAuth session when bootstrap is available
+$_rtBoot = BASE_PATH . '/app/bootstrap.php';
+if (is_readable($_rtBoot)) {
+    require_once $_rtBoot;
+    if (class_exists('AppAuth')) {
+        AppAuth::initSession();
+    }
+}
+unset($_rtBoot);
 
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
@@ -14,8 +24,27 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 define('RT_ROOT', __DIR__);
-define('RT_DATA', RT_ROOT . '/data/runners');
+// Tenant-aware path: after tenant_bootstrap, RUNNERS_DATA_PATH / DATA_PATH point at tenants/{id}/data
+if (defined('RUNNERS_DATA_PATH') && is_string(RUNNERS_DATA_PATH) && RUNNERS_DATA_PATH !== '') {
+    define('RT_DATA', rtrim(str_replace('\\', '/', (string)RUNNERS_DATA_PATH), '/'));
+} elseif (defined('DATA_PATH') && is_string(DATA_PATH) && DATA_PATH !== '') {
+    define('RT_DATA', rtrim(str_replace('\\', '/', (string)DATA_PATH), '/') . '/runners');
+} else {
+    define('RT_DATA', RT_ROOT . '/data/runners');
+}
 define('RT_TZ_DEFAULT', 'Asia/Kolkata');
+define('RT_HISTORY_RETENTION_DAYS', 90);
+define('RT_RATE_PER_RUNNER_PER_MIN', 30);
+define('RT_RATE_PER_IP_PER_MIN', 120);
+
+/** Tenant data root (not site-root /data). */
+function rtDataRoot(): string
+{
+    if (defined('DATA_PATH') && is_string(DATA_PATH) && DATA_PATH !== '') {
+        return rtrim(str_replace('\\', '/', (string)DATA_PATH), '/');
+    }
+    return rtrim(str_replace('\\', '/', RT_ROOT . '/data'), '/');
+}
 
 function rtEnsureDir(): void
 {
@@ -24,7 +53,7 @@ function rtEnsureDir(): void
     }
 }
 
- 
+/** @return array<mixed> */
 function readJsonFile(string $path): array
 {
     if (!is_file($path) || !is_readable($path)) {
@@ -50,14 +79,23 @@ function readJsonFile(string $path): array
     return is_array($data) ? $data : [];
 }
 
- 
-function writeJsonFile(string $path, array $data): bool
+/**
+ * Atomic write via temp + rename.
+ *
+ * @param array<mixed> $data
+ * @param bool $pretty false for high-frequency history (smaller I/O)
+ */
+function writeJsonFile(string $path, array $data, bool $pretty = true): bool
 {
     rtEnsureDir();
     if (!is_dir(dirname($path))) {
         @mkdir(dirname($path), 0755, true);
     }
-    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+    if ($pretty) {
+        $flags |= JSON_PRETTY_PRINT;
+    }
+    $json = json_encode($data, $flags);
     if ($json === false) {
         return false;
     }
@@ -94,13 +132,190 @@ function writeJsonFile(string $path, array $data): bool
     return true;
 }
 
+/**
+ * Exclusive locked read-modify-write — prevents lost updates under concurrent pings.
+ *
+ * @param callable(array):mixed $mutator receives current data by reference
+ * @return mixed
+ */
+function updateJsonFile(string $path, callable $mutator, bool $pretty = true)
+{
+    rtEnsureDir();
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $lockPath = $path . '.lock';
+    $lockFp = @fopen($lockPath, 'c+');
+    if ($lockFp === false) {
+        return false;
+    }
+    $gotLock = false;
+    try {
+        $gotLock = flock($lockFp, LOCK_EX);
+        if (!$gotLock) {
+            return false;
+        }
+        $data = [];
+        if (is_file($path) && is_readable($path)) {
+            $raw = @file_get_contents($path);
+            if ($raw !== false && $raw !== '') {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded)) {
+                    $data = $decoded;
+                }
+            }
+        }
+        $result = $mutator($data);
+        if (!writeJsonFile($path, $data, $pretty)) {
+            return false;
+        }
+        return $result;
+    } finally {
+        if ($gotLock) {
+            flock($lockFp, LOCK_UN);
+        }
+        fclose($lockFp);
+    }
+}
+
 function pathPolicy(): string { return RT_DATA . '/policy_settings.json'; }
 function pathViolations(): string { return RT_DATA . '/location_violations_log.json'; }
 function pathState(): string { return RT_DATA . '/runners_state.json'; }
+function pathTokens(): string { return RT_DATA . '/tracking_tokens.json'; }
+function pathRateLimit(): string { return RT_DATA . '/rate_limit.json'; }
 function pathHistory(string $date): string
 {
     $date = preg_replace('/[^0-9\-]/', '', $date) ?: rtToday();
     return RT_DATA . '/runner_history_' . $date . '.json';
+}
+
+/** @return array<string,string> */
+function loadTokens(): array
+{
+    $raw = readJsonFile(pathTokens());
+    $out = [];
+    foreach ($raw as $k => $v) {
+        if (is_string($k) && is_string($v) && $k !== '' && $v !== '') {
+            $out[$k] = $v;
+        }
+    }
+    return $out;
+}
+
+function ensureTrackingToken(string $runnerId): string
+{
+    $runnerId = trim($runnerId);
+    if ($runnerId === '') {
+        return '';
+    }
+    $result = updateJsonFile(pathTokens(), static function (array &$tokens) use ($runnerId): string {
+        if (!isset($tokens[$runnerId]) || !is_string($tokens[$runnerId]) || $tokens[$runnerId] === '') {
+            $tokens[$runnerId] = bin2hex(random_bytes(24));
+        }
+        foreach ($tokens as $k => $v) {
+            if (!is_string($k) || !is_string($v) || $k === '' || $v === '') {
+                unset($tokens[$k]);
+            }
+        }
+        return (string)$tokens[$runnerId];
+    }, true);
+    return is_string($result) ? $result : '';
+}
+
+function verifyTrackingToken(string $runnerId, string $token): bool
+{
+    if ($runnerId === '' || $token === '') {
+        return false;
+    }
+    $expected = loadTokens()[$runnerId] ?? '';
+    return $expected !== '' && hash_equals($expected, $token);
+}
+
+function rtClientIp(): string
+{
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    return preg_replace('/[^0-9a-fA-F:\.]/', '', $ip) ?: '0.0.0.0';
+}
+
+/** Sliding 60s window under exclusive lock. */
+function rtRateLimitAllow(string $bucket, int $maxPerMin): bool
+{
+    $now = time();
+    $allowed = updateJsonFile(pathRateLimit(), static function (array &$data) use ($bucket, $maxPerMin, $now): bool {
+        if (!isset($data[$bucket]) || !is_array($data[$bucket])) {
+            $data[$bucket] = [];
+        }
+        $hits = array_values(array_filter(
+            array_map('intval', $data[$bucket]),
+            static fn(int $t) => ($now - $t) < 60
+        ));
+        if (count($hits) >= $maxPerMin) {
+            $data[$bucket] = $hits;
+            return false;
+        }
+        $hits[] = $now;
+        $data[$bucket] = $hits;
+        if (count($data) > 500) {
+            foreach ($data as $k => $arr) {
+                if (!is_array($arr)) {
+                    unset($data[$k]);
+                    continue;
+                }
+                $kept = array_values(array_filter(
+                    array_map('intval', $arr),
+                    static fn(int $t) => ($now - $t) < 60
+                ));
+                if ($kept === []) {
+                    unset($data[$k]);
+                } else {
+                    $data[$k] = $kept;
+                }
+            }
+        }
+        return true;
+    }, false);
+    return $allowed === true;
+}
+
+function rtIsAdminSession(): bool
+{
+    $user = (string)($_SESSION['user'] ?? '');
+    return in_array($user, ['admin', 'crm', 'super_admin', 'public'], true)
+        || !empty($_SESSION['isAdmin'])
+        || !empty($_SESSION['isSuperAdmin']);
+}
+
+function rtRequireAdmin(): void
+{
+    if (!rtIsAdminSession()) {
+        jsonOut(['ok' => false, 'error' => 'Please sign in as admin to continue'], 401);
+    }
+}
+
+function rtRequireCsrf(): void
+{
+    $token = (string)($_SERVER['HTTP_X_CSRF_TOKEN']
+        ?? $_POST['csrf_token']
+        ?? $_POST['_csrf']
+        ?? '');
+    $sessionToken = (string)($_SESSION['csrf_token'] ?? '');
+    if ($sessionToken === '' || $token === '' || !hash_equals($sessionToken, $token)) {
+        jsonOut(['ok' => false, 'error' => 'Security check failed — refresh the page and try again'], 403);
+    }
+}
+
+function rtPurgeOldHistory(): void
+{
+    $cutoff = (new DateTimeImmutable('now', new DateTimeZone(RT_TZ_DEFAULT)))
+        ->modify('-' . (int)RT_HISTORY_RETENTION_DAYS . ' days')
+        ->format('Y-m-d');
+    $files = glob(RT_DATA . '/runner_history_*.json') ?: [];
+    foreach ($files as $f) {
+        if (preg_match('/runner_history_(\d{4}-\d{2}-\d{2})\.json$/', $f, $m) && $m[1] < $cutoff) {
+            @unlink($f);
+        }
+    }
 }
 
  
@@ -214,7 +429,7 @@ function isMandatoryEmployee(array $emp, array $policy): bool
             $desigKeys[$v] = true;
         }
     }
-    $desigFile = RT_ROOT . '/data/designations.json';
+    $desigFile = rtDataRoot() . '/designations.json';
     if (is_file($desigFile) && $desigKeys !== []) {
         $rows = readJsonFile($desigFile);
         if (isset($rows['items']) && is_array($rows['items'])) {
@@ -301,7 +516,7 @@ function initials(string $name): string
 function seedFromTeam(): array
 {
     $out = [];
-    $teamFile = RT_ROOT . '/data/team.json';
+    $teamFile = rtDataRoot() . '/team.json';
     if (!is_file($teamFile)) {
         return $out;
     }
@@ -385,56 +600,68 @@ function nextIncidentId(array $violations, array $policy): string
 
 function openViolation(array $emp, string $type, array $policy, ?string $address = null): array
 {
-    $violations = loadViolations();
     $eid = (string)($emp['id'] ?? '');
-    foreach ($violations as $v) {
-        if ((string)($v['employee_id'] ?? '') === $eid && ($v['status'] ?? '') === 'OPEN') {
-            return ['created' => false, 'incident' => $v];
+    $result = updateJsonFile(pathViolations(), static function (array &$violations) use ($emp, $type, $policy, $address, $eid): array {
+        if ($violations !== [] && !isset($violations[0])) {
+            $violations = array_values(array_filter($violations, 'is_array'));
         }
-    }
-    $incident = [
-        'incident_id' => nextIncidentId($violations, $policy),
-        'employee_id' => $eid,
-        'name' => (string)($emp['name'] ?? ''),
-        'designation' => (string)($emp['designation'] ?? ''),
-        'department' => (string)($emp['department'] ?? ''),
-        'violation_type' => $type,
-        'detected_at' => rtNowStr($policy),
-        'resolved_at' => null,
-        'duration_minutes' => null,
-        'last_known_lat' => $emp['last_lat'] ?? null,
-        'last_known_lng' => $emp['last_lng'] ?? null,
-        'last_known_address' => $address ?? ($emp['last_known_address'] ?? null),
-        'status' => 'OPEN',
-    ];
-    $violations[] = $incident;
-    saveViolations($violations);
-    return ['created' => true, 'incident' => $incident];
+        foreach ($violations as $v) {
+            if ((string)($v['employee_id'] ?? '') === $eid && ($v['status'] ?? '') === 'OPEN') {
+                return ['created' => false, 'incident' => $v];
+            }
+        }
+        $incident = [
+            'incident_id' => nextIncidentId($violations, $policy),
+            'employee_id' => $eid,
+            'name' => (string)($emp['name'] ?? ''),
+            'designation' => (string)($emp['designation'] ?? ''),
+            'department' => (string)($emp['department'] ?? ''),
+            'violation_type' => $type,
+            'detected_at' => rtNowStr($policy),
+            'resolved_at' => null,
+            'duration_minutes' => null,
+            'last_known_lat' => $emp['last_lat'] ?? null,
+            'last_known_lng' => $emp['last_lng'] ?? null,
+            'last_known_address' => $address ?? ($emp['last_known_address'] ?? null),
+            'status' => 'OPEN',
+        ];
+        $violations[] = $incident;
+        return ['created' => true, 'incident' => $incident];
+    }, true);
+    return is_array($result) ? $result : ['created' => false, 'incident' => null];
 }
 
 function resolveOpenViolations(array &$violations, string $employeeId, array $policy): array
 {
-    $resolved = [];
-    $now = rtNow($policy);
-    foreach ($violations as &$v) {
-        if ((string)($v['employee_id'] ?? '') !== $employeeId || ($v['status'] ?? '') !== 'OPEN') {
-            continue;
+    $resolved = updateJsonFile(pathViolations(), static function (array &$rows) use ($employeeId, $policy, &$violations): array {
+        if ($rows !== [] && !isset($rows[0])) {
+            $rows = array_values(array_filter($rows, 'is_array'));
         }
-        $detected = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', (string)($v['detected_at'] ?? ''), rtTimezone($policy));
-        $mins = 0;
-        if ($detected instanceof DateTimeImmutable) {
-            $mins = (int)max(0, floor(($now->getTimestamp() - $detected->getTimestamp()) / 60));
+        $resolved = [];
+        $now = rtNow($policy);
+        foreach ($rows as &$v) {
+            if ((string)($v['employee_id'] ?? '') !== $employeeId || ($v['status'] ?? '') !== 'OPEN') {
+                continue;
+            }
+            $detected = DateTimeImmutable::createFromFormat(
+                'Y-m-d H:i:s',
+                (string)($v['detected_at'] ?? ''),
+                rtTimezone($policy)
+            );
+            $mins = 0;
+            if ($detected instanceof DateTimeImmutable) {
+                $mins = (int)max(0, floor(($now->getTimestamp() - $detected->getTimestamp()) / 60));
+            }
+            $v['resolved_at'] = $now->format('Y-m-d H:i:s');
+            $v['duration_minutes'] = $mins;
+            $v['status'] = 'RESOLVED';
+            $resolved[] = $v;
         }
-        $v['resolved_at'] = $now->format('Y-m-d H:i:s');
-        $v['duration_minutes'] = $mins;
-        $v['status'] = 'RESOLVED';
-        $resolved[] = $v;
-    }
-    unset($v);
-    if ($resolved !== []) {
-        saveViolations($violations);
-    }
-    return $resolved;
+        unset($v);
+        $violations = $rows;
+        return $resolved;
+    }, true);
+    return is_array($resolved) ? $resolved : [];
 }
 
 function runHeartbeatCompliance(array $state, array $policy): array
@@ -655,16 +882,25 @@ function actionUpdateLocation(array $body): void
 {
     $policy = loadPolicy();
     $runnerId = trim((string)($body['runner_id'] ?? $body['id'] ?? ''));
+    $token = trim((string)($body['tracking_token'] ?? $body['token'] ?? ''));
+    // Token required for field pings — prevents unauthenticated state poisoning
+    if ($runnerId === '' || !verifyTrackingToken($runnerId, $token)) {
+        jsonOut(['ok' => false, 'error' => 'Invalid or missing tracking link — open the share link again'], 401);
+    }
+    if (!rtRateLimitAllow('r:' . $runnerId, RT_RATE_PER_RUNNER_PER_MIN)
+        || !rtRateLimitAllow('ip:' . rtClientIp(), RT_RATE_PER_IP_PER_MIN)) {
+        jsonOut(['ok' => false, 'error' => 'Too many updates — please wait a moment'], 429);
+    }
     $lat = isset($body['lat']) ? (float)$body['lat'] : (isset($body['latitude']) ? (float)$body['latitude'] : null);
     $lng = isset($body['lng']) ? (float)$body['lng'] : (isset($body['longitude']) ? (float)$body['longitude'] : null);
     $speed = isset($body['speed']) ? (float)$body['speed'] : (isset($body['speed_kmh']) ? (float)$body['speed_kmh'] : null);
     $battery = isset($body['battery']) ? (int)$body['battery'] : (isset($body['battery_percentage']) ? (int)$body['battery_percentage'] : null);
     $address = isset($body['address']) ? trim((string)$body['address']) : null;
     if ($runnerId === '' || $lat === null || $lng === null) {
-        jsonOut(['ok' => false, 'error' => 'runner_id, lat, lng required'], 400);
+        jsonOut(['ok' => false, 'error' => 'Runner, latitude and longitude are required'], 400);
     }
     if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
-        jsonOut(['ok' => false, 'error' => 'Invalid coordinates'], 400);
+        jsonOut(['ok' => false, 'error' => 'Location looks invalid — try again'], 400);
     }
     if ($battery !== null) {
         $battery = max(0, min(100, $battery));
@@ -675,75 +911,102 @@ function actionUpdateLocation(array $body): void
     $now = rtNowStr($policy);
     $today = rtToday($policy);
     $timeOnly = rtNow($policy)->format('H:i:s');
-    $state = loadState();
-    $found = false;
-    $emp = null;
-    foreach ($state as &$r) {
-        if ((string)($r['id'] ?? '') !== $runnerId) {
-            continue;
+
+    $emp = updateJsonFile(pathState(), static function (array &$state) use (
+        $runnerId, $lat, $lng, $speed, $battery, $address, $now, $body, $policy
+    ): array {
+        if ($state !== [] && !isset($state[0])) {
+            $state = array_values(array_filter($state, 'is_array'));
         }
-        $found = true;
-        $r['last_lat'] = round($lat, 8);
-        $r['last_lng'] = round($lng, 8);
-        $r['speed_kmh'] = $speed;
-        $r['battery_percentage'] = $battery;
-        $r['last_ping'] = $now;
-        $r['is_tracking_enabled'] = true;
-        $r['location_sharing'] = true;
-        if ($address) {
-            $r['last_known_address'] = $address;
+        $found = false;
+        $empOut = [];
+        foreach ($state as &$r) {
+            if ((string)($r['id'] ?? '') !== $runnerId) {
+                continue;
+            }
+            $found = true;
+            $r['last_lat'] = round($lat, 8);
+            $r['last_lng'] = round($lng, 8);
+            $r['speed_kmh'] = $speed;
+            $r['battery_percentage'] = $battery;
+            $r['last_ping'] = $now;
+            $r['is_tracking_enabled'] = true;
+            $r['location_sharing'] = true;
+            if ($address) {
+                $r['last_known_address'] = $address;
+            }
+            $r['status'] = ($speed !== null && $speed >= 1.5) ? 'MOVING' : 'IDLE';
+            $r['compliance'] = (isMandatoryEmployee($r, $policy) && isWorkingHours($policy))
+                ? 'COMPLIANT' : 'OFF_DUTY';
+            $empOut = $r;
+            break;
         }
-        $r['status'] = ($speed !== null && $speed >= 1.5) ? 'MOVING' : 'IDLE';
-        $r['compliance'] = (isMandatoryEmployee($r, $policy) && isWorkingHours($policy)) ? 'COMPLIANT' : 'OFF_DUTY';
-        $emp = $r;
-        break;
+        unset($r);
+        if (!$found) {
+            $empOut = [
+                'id' => $runnerId,
+                'name' => (string)($body['name'] ?? $runnerId),
+                'designation' => (string)($body['designation'] ?? 'Office Runner'),
+                'department' => (string)($body['department'] ?? ''),
+                'rank' => isset($body['rank']) ? (int)$body['rank'] : 9999,
+                'is_tracking_enabled' => true,
+                'location_sharing' => true,
+                'last_lat' => round($lat, 8),
+                'last_lng' => round($lng, 8),
+                'last_known_address' => $address,
+                'speed_kmh' => $speed,
+                'battery_percentage' => $battery,
+                'last_ping' => $now,
+                'status' => ($speed !== null && $speed >= 1.5) ? 'MOVING' : 'IDLE',
+                'compliance' => 'COMPLIANT',
+            ];
+            $state[] = $empOut;
+        }
+        usort($state, 'rtSortByRank');
+        $state = array_values($state);
+        return $empOut;
+    }, true);
+
+    if (!is_array($emp)) {
+        jsonOut(['ok' => false, 'error' => 'Could not save location — please try again'], 503);
     }
-    unset($r);
-    if (!$found) {
-        $emp = [
-            'id' => $runnerId,
-            'name' => (string)($body['name'] ?? $runnerId),
-            'designation' => (string)($body['designation'] ?? 'Office Runner'),
-            'department' => (string)($body['department'] ?? ''),
-            'rank' => isset($body['rank']) ? (int)$body['rank'] : 9999,
-            'is_tracking_enabled' => true,
-            'location_sharing' => true,
-            'last_lat' => round($lat, 8),
-            'last_lng' => round($lng, 8),
-            'last_known_address' => $address,
-            'speed_kmh' => $speed,
-            'battery_percentage' => $battery,
-            'last_ping' => $now,
-            'status' => ($speed !== null && $speed >= 1.5) ? 'MOVING' : 'IDLE',
-            'compliance' => 'COMPLIANT',
-        ];
-        $state[] = $emp;
-    }
-    saveState($state);
+
     $violations = loadViolations();
     $resolved = resolveOpenViolations($violations, $runnerId, $policy);
-    $history = readJsonFile(pathHistory($today));
-    if ($history !== [] && !isset($history[0])) {
-        $history = [];
+
+    updateJsonFile(pathHistory($today), static function (array &$history) use (
+        $runnerId, $lat, $lng, $speed, $battery, $timeOnly, $now, $address
+    ): bool {
+        if ($history !== [] && !isset($history[0])) {
+            $history = [];
+        }
+        $history[] = [
+            'runner_id' => $runnerId,
+            'lat' => round($lat, 8),
+            'lng' => round($lng, 8),
+            'speed' => $speed,
+            'battery' => $battery,
+            'timestamp' => $timeOnly,
+            'recorded_at' => $now,
+            'address' => $address,
+        ];
+        if (count($history) > 20000) {
+            $history = array_slice($history, -15000);
+        }
+        return true;
+    }, false);
+
+    if (random_int(1, 40) === 1) {
+        rtPurgeOldHistory();
     }
-    $history[] = [
-        'runner_id' => $runnerId,
-        'lat' => round($lat, 8),
-        'lng' => round($lng, 8),
-        'speed' => $speed,
-        'battery' => $battery,
-        'timestamp' => $timeOnly,
-        'recorded_at' => $now,
-        'address' => $address,
-    ];
-    writeJsonFile(pathHistory($today), $history);
+
     jsonOut([
         'ok' => true,
         'runner_id' => $runnerId,
         'recorded_at' => $now,
         'status' => $emp['status'] ?? 'IDLE',
         'compliance' => $emp['compliance'] ?? 'COMPLIANT',
-        'resolved_incidents' => array_map(static fn($v) => $v['incident_id'], $resolved),
+        'resolved_incidents' => array_map(static fn($v) => $v['incident_id'] ?? '', $resolved),
     ]);
 }
 
@@ -751,45 +1014,67 @@ function actionReportTurnOff(array $body): void
 {
     $policy = loadPolicy();
     $runnerId = trim((string)($body['runner_id'] ?? $body['id'] ?? ''));
-    if ($runnerId === '') {
-        jsonOut(['ok' => false, 'error' => 'runner_id required'], 400);
+    $token = trim((string)($body['tracking_token'] ?? $body['token'] ?? ''));
+    if ($runnerId === '' || !verifyTrackingToken($runnerId, $token)) {
+        jsonOut(['ok' => false, 'error' => 'Invalid or missing tracking link — open the share link again'], 401);
     }
-    $state = loadState();
-    $emp = null;
-    foreach ($state as &$r) {
-        if ((string)($r['id'] ?? '') !== $runnerId) {
-            continue;
+    $emp = updateJsonFile(pathState(), static function (array &$state) use ($runnerId, $body, $policy): array {
+        if ($state !== [] && !isset($state[0])) {
+            $state = array_values(array_filter($state, 'is_array'));
         }
-        $r['location_sharing'] = false;
-        $r['status'] = 'OFFLINE';
-        $r['compliance'] = (isMandatoryEmployee($r, $policy) && isWorkingHours($policy)) ? 'IN_VIOLATION' : 'OFF_DUTY';
-        $emp = $r;
-        break;
-    }
-    unset($r);
-    if ($emp === null) {
-        $emp = [
-            'id' => $runnerId,
-            'name' => (string)($body['name'] ?? $runnerId),
-            'designation' => (string)($body['designation'] ?? 'Office Runner'),
-            'department' => (string)($body['department'] ?? ''),
-            'rank' => 9999,
-            'location_sharing' => false,
-            'last_lat' => isset($body['lat']) ? (float)$body['lat'] : null,
-            'last_lng' => isset($body['lng']) ? (float)$body['lng'] : null,
-            'last_known_address' => $body['address'] ?? null,
-            'last_ping' => null,
-            'status' => 'OFFLINE',
-            'compliance' => 'IN_VIOLATION',
-        ];
-        $state[] = $emp;
+        $empOut = null;
+        foreach ($state as &$r) {
+            if ((string)($r['id'] ?? '') !== $runnerId) {
+                continue;
+            }
+            $r['location_sharing'] = false;
+            $r['status'] = 'OFFLINE';
+            $r['compliance'] = (isMandatoryEmployee($r, $policy) && isWorkingHours($policy))
+                ? 'IN_VIOLATION' : 'OFF_DUTY';
+            $empOut = $r;
+            break;
+        }
+        unset($r);
+        if ($empOut === null) {
+            $empOut = [
+                'id' => $runnerId,
+                'name' => (string)($body['name'] ?? $runnerId),
+                'designation' => (string)($body['designation'] ?? 'Office Runner'),
+                'department' => (string)($body['department'] ?? ''),
+                'rank' => 9999,
+                'location_sharing' => false,
+                'last_lat' => isset($body['lat']) ? (float)$body['lat'] : null,
+                'last_lng' => isset($body['lng']) ? (float)$body['lng'] : null,
+                'last_known_address' => $body['address'] ?? null,
+                'last_ping' => null,
+                'status' => 'OFFLINE',
+                'compliance' => 'IN_VIOLATION',
+            ];
+            $state[] = $empOut;
+        }
+        usort($state, 'rtSortByRank');
+        $state = array_values($state);
+        return $empOut;
+    }, true);
+    if (!is_array($emp)) {
+        jsonOut(['ok' => false, 'error' => 'Could not update status — please try again'], 503);
     }
     $result = ['created' => false, 'incident' => null];
     if (isMandatoryEmployee($emp, $policy) && isWorkingHours($policy)) {
-        $result = openViolation($emp, 'LOCATION_DISABLED_MANUAL', $policy, isset($body['address']) ? (string)$body['address'] : null);
+        $result = openViolation(
+            $emp,
+            'LOCATION_DISABLED_MANUAL',
+            $policy,
+            isset($body['address']) ? (string)$body['address'] : null
+        );
     }
-    saveState($state);
-    jsonOut(['ok' => true, 'runner_id' => $runnerId, 'compliance' => $emp['compliance'], 'incident_created' => $result['created'], 'incident' => $result['incident']]);
+    jsonOut([
+        'ok' => true,
+        'runner_id' => $runnerId,
+        'compliance' => $emp['compliance'] ?? 'OFF_DUTY',
+        'incident_created' => $result['created'],
+        'incident' => $result['incident'],
+    ]);
 }
 
 function actionGetHistory(array $query): void
@@ -800,7 +1085,7 @@ function actionGetHistory(array $query): void
         $date = rtToday();
     }
     if ($runnerId === '') {
-        jsonOut(['ok' => false, 'error' => 'runner_id required'], 400);
+        jsonOut(['ok' => false, 'error' => 'Please choose a runner'], 400);
     }
     $points = [];
     foreach (readJsonFile(pathHistory($date)) as $p) {
@@ -994,6 +1279,25 @@ $action = strtolower(trim((string)($_GET['action'] ?? $_POST['action'] ?? 'ui'))
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $body = requestBody();
 
+// Public field endpoints (token checked inside handlers)
+$publicActions = ['update_location', 'report_turn_off'];
+
+if ($action === 'ui') {
+    if (!rtIsAdminSession()) {
+        http_response_code(401);
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in required</title></head><body style="font-family:system-ui,sans-serif;padding:2rem;text-align:center">';
+        echo '<p>Please sign in as admin to open Live location / office runners.</p>';
+        echo '<p><a href="./">Back to portal</a></p></body></html>';
+        exit;
+    }
+} elseif (!in_array($action, $publicActions, true)) {
+    rtRequireAdmin();
+    if ($method === 'POST') {
+        rtRequireCsrf();
+    }
+}
+
 if ($action !== 'ui') {
     try {
         match ($action) {
@@ -1021,6 +1325,16 @@ if ($action !== 'ui') {
             'export_violations_print' => actionExportViolationsPrint($_GET),
             'audit' => actionAudit($_GET),
             'export_csv' => actionExportCsv($_GET),
+            'get_tokens' => (function (): void {
+                $map = [];
+                foreach (loadState() as $row) {
+                    $id = (string)($row['id'] ?? '');
+                    if ($id !== '') {
+                        $map[$id] = ensureTrackingToken($id);
+                    }
+                }
+                jsonOut(['ok' => true, 'tokens' => $map]);
+            })(),
             default => jsonOut(['ok' => false, 'error' => 'Unknown action'], 400),
         };
     } catch (Throwable $e) {
@@ -1029,8 +1343,9 @@ if ($action !== 'ui') {
 }
 
 $mapsKey = '';
-if (is_file(RT_ROOT . '/data/company.json')) {
-    $co = readJsonFile(RT_ROOT . '/data/company.json');
+$companyPath = (defined('DATA_PATH') ? DATA_PATH : (RT_ROOT . '/data')) . '/company.json';
+if (is_file($companyPath)) {
+    $co = readJsonFile($companyPath);
     $c0 = isset($co[0]) && is_array($co[0]) ? $co[0] : $co;
     $mapsKey = (string)($c0['google_maps_api_key'] ?? $c0['maps_api_key'] ?? '');
 }

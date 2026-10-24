@@ -1,9 +1,14 @@
 <?php
-// Version: 5.2.0 — Modern live widgets (Fluent / iOS-style)
+// Version: 5.2.1 — Modern live widgets (Fluent / iOS-style); single-render guard
 declare(strict_types=1);
 if (!defined('BASE_PATH')) {
     return;
 }
+// Prevent double widget row if dashboard + tab both require this partial
+if (defined('RC_PUBLIC_WIDGETS_RENDERED')) {
+    return;
+}
+define('RC_PUBLIC_WIDGETS_RENDERED', true);
 $lat = 28.6595;
 $lng = 77.3170;
 if (class_exists('AppDB')) {

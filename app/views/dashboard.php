@@ -1423,8 +1423,10 @@ button.bg-white,a.bg-white{color:#0f172a!important}
                      
 
                      
+                    // Widgets on Team / Events only. Today owns its own strip in tab_today.php
+                    // (including both caused a double widget row on ?tab=today).
                     if (empty($isSuperAdmin) && empty($viewData['isSuperAdmin'])
-                        && in_array($currentTab, ['today', 'team', 'events', 'home', ''], true)) {
+                        && in_array($currentTab, ['team', 'events'], true)) {
                         echo '<div class="rc-top-widgets mb-3 grid grid-cols-4 gap-2 items-stretch" style="grid-template-columns:repeat(4,minmax(0,1fr))" role="region" aria-label="Live local widgets">';
                         $wxPartial = __DIR__ . '/partials/public_live_widgets.php';
                         if (is_file($wxPartial)) {

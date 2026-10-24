@@ -13,9 +13,15 @@ $runnersUrl = str_replace('\\', '/', $runnersUrl);
  
 $runnersUrl = '/runners.php';
 
-$policyPath = BASE_PATH . '/data/runners/policy_settings.json';
-$violPath = BASE_PATH . '/data/runners/location_violations_log.json';
-$statePath = BASE_PATH . '/data/runners/runners_state.json';
+$__rtData = defined('RUNNERS_DATA_PATH') && RUNNERS_DATA_PATH
+    ? rtrim(str_replace('\\', '/', (string)RUNNERS_DATA_PATH), '/')
+    : (defined('DATA_PATH') && DATA_PATH
+        ? rtrim(str_replace('\\', '/', (string)DATA_PATH), '/') . '/runners'
+        : BASE_PATH . '/data/runners');
+$policyPath = $__rtData . '/policy_settings.json';
+$violPath = $__rtData . '/location_violations_log.json';
+$statePath = $__rtData . '/runners_state.json';
+unset($__rtData);
 
 $policy = [];
 $violations = [];

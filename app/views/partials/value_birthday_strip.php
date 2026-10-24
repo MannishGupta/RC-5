@@ -4,6 +4,10 @@ declare(strict_types=1);
 if (!defined('BASE_PATH')) {
     return;
 }
+if (defined('RC_BDAY_STRIP_RENDERED')) {
+    return;
+}
+define('RC_BDAY_STRIP_RENDERED', true);
 $h = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 $team = [];
 if (class_exists('AppDB')) {

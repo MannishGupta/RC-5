@@ -3,10 +3,12 @@
 if (!defined('BASE_PATH')) exit;
 
 $companyData = class_exists('AppDB') ? AppDB::read('company') : [];
-if (empty($companyData) && file_exists(BASE_PATH . '/data/company.json')) {
-    $compJson = json_decode((string)file_get_contents(BASE_PATH . '/data/company.json'), true);
+$__coPath = (defined('DATA_PATH') && DATA_PATH !== '' ? rtrim(str_replace('\\', '/', (string)DATA_PATH), '/') : (BASE_PATH . '/data')) . '/company.json';
+if (empty($companyData) && is_file($__coPath)) {
+    $compJson = json_decode((string)file_get_contents($__coPath), true);
     $companyData = $compJson[0] ?? $compJson ?? [];
 }
+unset($__coPath);
 if (!is_array($companyData)) $companyData = [];
 
 $compName    = (string)($companyData['name'] ?? 'Enterprise Portal');

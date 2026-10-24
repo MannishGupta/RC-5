@@ -1,0 +1,20 @@
+RC 5.1.9 — deploy notes
+=======================
+Baseline: commercial RC 5.1.8 tree.
+
+SAFE DEPLOY
+  1. Backup live rc/ especially tenants/ and data/
+  2. Extract this zip over code
+  3. NEVER overwrite tenants/*/data/** or auth_config.php
+  4. Confirm tenants/map.json: rc.arthsathi.com → arthsathi
+  5. DATA_PATH must be .../tenants/arthsathi/data
+  6. Hard-refresh; open ?tab=today
+  7. Delete diag.php when done
+
+PASSWORDS
+  blsbls / alliswell work only if tenant auth_config.php hashes still match.
+  Restore auth_config from backup if login fails after a bad overlay.
+
+RUNNERS
+  Field share links must send tracking_token (track_share.php already does).
+  State files live under tenants/{id}/data/runners/
