@@ -12,7 +12,7 @@ function writeAuditLog(string $event, array $ctx=[]): void {
      
     $xFwd = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
     $ip   = !empty($xFwd)
-        ? trim(end(array_map('trim', explode(',', $xFwd))))
+        ? trim((string)(array_last(array_map(trim(...), explode(',', $xFwd))) ?? ''))
         : trim($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
     $ip = filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
     $ua  = $_SERVER['HTTP_USER_AGENT']??'';

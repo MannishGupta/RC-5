@@ -236,8 +236,8 @@ class AppNumeroEngine {
         foreach (['a', 'e', 'i', 'u', 'o'] as $v) { $p = $parts; $p[0] = $firstName . $v; $addCand(implode(' ', $p), 'first_append_vowel_' . $v); }
         foreach (['n', 's', 'h', 'r', 'l', 'k', 'm', 't'] as $c) { $p = $parts; $p[0] = $firstName . $c; $addCand(implode(' ', $p), 'first_append_cons_' . $c); }
         if (strlen($firstName) >= 2) { $p = $parts; $p[0] = $firstName . strtolower(substr($firstName, -1)); $addCand(implode(' ', $p), 'first_double_last'); }
-        for ($vi = 1; $vi < strlen($firstName) - 1; $vi++) { if (strpos('bcdfgklmnprstvy', strtolower($firstName[$vi])) !== false) { $p = $parts; $p[0] = substr($firstName, 0, $vi + 1) . 'h' . substr($firstName, $vi + 1); $addCand(implode(' ', $p), 'first_silent_h_' . $vi); break; } }
-        for ($vi = 1; $vi < strlen($firstName); $vi++) { if (strpos('aeiou', strtolower($firstName[$vi - 1])) !== false) { foreach (['a', 'e'] as $sv) { $p = $parts; $p[0] = substr($firstName, 0, $vi) . $sv . substr($firstName, $vi); $addCand(implode(' ', $p), 'first_vowel_insert_' . $vi . '_' . $sv); break 2; } } }
+        for ($vi = 1; $vi < strlen($firstName) - 1; $vi++) { if (str_contains('bcdfgklmnprstvy', strtolower($firstName[$vi]))) { $p = $parts; $p[0] = substr($firstName, 0, $vi + 1) . 'h' . substr($firstName, $vi + 1); $addCand(implode(' ', $p), 'first_silent_h_' . $vi); break; } }
+        for ($vi = 1; $vi < strlen($firstName); $vi++) { if (str_contains('aeiou', strtolower($firstName[$vi - 1]))) { foreach (['a', 'e'] as $sv) { $p = $parts; $p[0] = substr($firstName, 0, $vi) . $sv . substr($firstName, $vi); $addCand(implode(' ', $p), 'first_vowel_insert_' . $vi . '_' . $sv); break 2; } } }
         if ($lastName && $lastName !== $firstName) { foreach (['a', 'e', 'n', 's', 'h'] as $ch) { $p = $parts; $p[count($p) - 1] = $lastName . $ch; $addCand(implode(' ', $p), 'last_append_' . $ch); } $p = $parts; $p[count($p) - 1] = $lastName . strtolower(substr($lastName, -1)); $addCand(implode(' ', $p), 'last_double'); }
         if ($midName) { foreach (['a', 'e', 'n', 'h'] as $ch) { $p = $parts; $p[1] = $midName . $ch; $addCand(implode(' ', $p), 'mid_append_' . $ch); } }
         if (count($parts) <= 2) { foreach (['Kumar', 'Singh', 'Raj', 'Dev', 'Lal', 'Das', 'Nath'] as $mid) { $addCand($firstName . ' ' . $mid . (count($parts) > 1 ? ' ' . $lastName : ''), 'middle_' . $mid); } }
@@ -255,7 +255,7 @@ class AppNumeroEngine {
         $top = []; $usedTypes = []; $seenNames = [];
         foreach ($scored as $c) {
             if (in_array($c['name'], $seenNames, true)) continue;
-            $sk = $c['strategy_key'] ?? ''; $partType = strpos($sk, 'last') !== false ? 'L' : (strpos($sk, 'mid') !== false ? 'M' : 'F'); $changeType = $partType . '_' . substr($sk, -2);
+            $sk = $c['strategy_key'] ?? ''; $partType = str_contains($sk, 'last') ? 'L' : (str_contains($sk, 'mid') ? 'M' : 'F'); $changeType = $partType . '_' . substr($sk, -2);
             if (in_array($changeType, $usedTypes, true)) continue;
             $usedTypes[] = $changeType; $seenNames[] = $c['name'];
             $newFirst  = explode(' ', $c['name'])[0];

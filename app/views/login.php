@@ -16,7 +16,7 @@ $compLogo    = !empty($companyData['logo'])    ? 'images/' . $companyData['logo'
 $compFavicon = !empty($companyData['favicon']) ? 'images/' . $companyData['favicon'] : null;
 $compWebsite = (string)($companyData['website'] ?? '');
 $websiteUrl  = $compWebsite;
-if ($websiteUrl !== '' && $websiteUrl !== '#' && strpos($websiteUrl, 'http') !== 0) {
+if ($websiteUrl !== '' && $websiteUrl !== '#' && !str_starts_with($websiteUrl, 'http')) {
     $websiteUrl = 'https://' . $websiteUrl;
 }
 

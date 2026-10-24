@@ -1,259 +1,283 @@
 <?php
-
+/**
+ * Health & Tools — single operations hub
+ * Sections: status · maintenance (optimiser + cleanup + cache) · reports · advanced
+ */
 if (!defined('BASE_PATH')) {
     exit;
 }
 $__isSa = !empty($isSuperAdmin);
 $__isAd = !empty($isAdmin) || $__isSa;
+$h = static fn($s) => htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 ?>
-<div class="space-y-5" x-data="valueHealth()" x-init="run()">
-  <div class="flex flex-wrap justify-between gap-2">
+<div class="space-y-6" x-data="valueHealth()" x-init="run()">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-end justify-between gap-3">
     <div>
-      
-      
+      <p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Operations</p>
+      <h1 class="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Health &amp; tools</h1>
+      <p class="text-sm text-slate-500 mt-1 max-w-xl">
+        One place for system health, cleanup, cache refresh, backups, and printable reports.
+        Prefer these buttons over typing file paths.
+      </p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <button type="button" @click="run()" class="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700">Recheck health</button>
-      <button type="button" @click="backup()" class="h-9 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold" x-show="isAdmin">Create backup zip</button>
+      <button type="button" @click="run()"
+              class="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:border-blue-400">
+        <i class="fa-solid fa-stethoscope mr-1" aria-hidden="true"></i> Recheck health
+      </button>
+      <button type="button" @click="backup()" x-show="isAdmin" x-cloak
+              class="h-9 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500">
+        <i class="fa-solid fa-file-zipper mr-1" aria-hidden="true"></i> Quick backup
+      </button>
     </div>
   </div>
-  <p class="text-xs font-semibold" :class="msg.indexOf('fail')>=0 || msg.indexOf('FAIL')>=0 ? 'text-rose-700' : 'text-emerald-700'" x-text="msg"></p>
 
-  <!-- Launch pad: no raw URLs required -->
-  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">
-      <h3 class="text-sm font-bold text-slate-800">Operations launch pad</h3>
-      <p class="text-[11px] text-slate-500 mt-0.5">Open any function with a button. Prefer these over typing paths.</p>
+  <p class="text-xs font-semibold"
+     :class="msg.indexOf('fail')>=0 || msg.indexOf('FAIL')>=0 ? 'text-rose-700' : 'text-emerald-700'"
+     x-text="msg"
+     role="status"
+     aria-live="polite"></p>
+
+  <!-- 1. Health status chips (from valueHealth) -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" aria-labelledby="rc-health-status">
+    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 id="rc-health-status" class="text-sm font-bold text-slate-800">System health</h2>
+        <p class="text-[11px] text-slate-500">Quick read on storage, sessions, and tenant readiness.</p>
+      </div>
     </div>
-    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-
-      <a href="/health.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-heart-pulse text-emerald-600"></i>
-        <span class="rc-tool-tile__t">Uptime probe</span>
-        <span class="rc-tool-tile__d">JSON status for monitors · no login</span>
-      </a>
-
-      <?php if ($__isAd): ?>
-      <button type="button" @click="backup()" class="rc-tool-tile text-left w-full">
-        <i class="fa-solid fa-file-zipper text-emerald-600"></i>
-        <span class="rc-tool-tile__t">Backup data zip</span>
-        <span class="rc-tool-tile__d">Snapshot tenant data / config / media</span>
-      </button>
-      <a href="/tools/backup.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-download text-blue-600"></i>
-        <span class="rc-tool-tile__t">Backup tool page</span>
-        <span class="rc-tool-tile__d">Alternate backup UI if configured</span>
-      </a>
-      <a href="/tools/diagnostics.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-stethoscope text-indigo-600"></i>
-        <span class="rc-tool-tile__t">Diagnostics</span>
-        <span class="rc-tool-tile__d">Host / path / extension checks</span>
-      </a>
-      <a href="/tools/flush_cache.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-broom text-amber-600"></i>
-        <span class="rc-tool-tile__t">Flush cache</span>
-        <span class="rc-tool-tile__d">Clear app / card caches</span>
-      </a>
-      <a href="/tools/opcache_status.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-microchip text-slate-600"></i>
-        <span class="rc-tool-tile__t">Opcache status</span>
-        <span class="rc-tool-tile__d">PHP opcache snapshot</span>
-      </a>
-      <?php endif; ?>
-
-      <a href="/tools/print_directory.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-print text-slate-700"></i>
-        <span class="rc-tool-tile__t">Print directory</span>
-        <span class="rc-tool-tile__d">Human Capital print cards</span>
-      </a>
-      <a href="/tools/export_team_csv.php" class="rc-tool-tile">
-        <i class="fa-solid fa-file-csv text-slate-700"></i>
-        <span class="rc-tool-tile__t">Export team CSV</span>
-        <span class="rc-tool-tile__d">Download roster spreadsheet</span>
-      </a>
-      <a href="/tools/export_vcf.php" class="rc-tool-tile">
-        <i class="fa-solid fa-address-book text-emerald-700"></i>
-        <span class="rc-tool-tile__t">vCard export</span>
-        <span class="rc-tool-tile__d">All contacts for phone import</span>
-      </a>
-      <a href="/blood_report.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-droplet text-rose-600"></i>
-        <span class="rc-tool-tile__t">Blood report roster</span>
-        <span class="rc-tool-tile__d">Team blood groups (signed-in)</span>
-      </a>
-      <a href="/janam_patri.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-om text-amber-700"></i>
-        <span class="rc-tool-tile__t">Janam Patri entry</span>
-        <span class="rc-tool-tile__d">Open chart form (or use Team person tools)</span>
-      </a>
-      <a href="?tab=team" class="rc-tool-tile">
-        <i class="fa-solid fa-users text-blue-700"></i>
-        <span class="rc-tool-tile__t">Human Capital Index</span>
-        <span class="rc-tool-tile__d">Directory, cards, signatures, reports</span>
-      </a>
-      <a href="?tab=numero" class="rc-tool-tile">
-        <i class="fa-solid fa-wand-magic-sparkles text-violet-600"></i>
-        <span class="rc-tool-tile__t">Vedic Numero</span>
-        <span class="rc-tool-tile__d">Numerology module tab</span>
-      </a>
-
-      <?php if ($__isSa): ?>
-      <a href="?tab=monitor" class="rc-tool-tile">
-        <i class="fa-solid fa-heart-pulse text-red-600"></i>
-        <span class="rc-tool-tile__t">Monitor</span>
-        <span class="rc-tool-tile__d">Infrastructure telemetry</span>
-      </a>
-      <a href="?tab=opt" class="rc-tool-tile">
-        <i class="fa-solid fa-gauge-high text-orange-600"></i>
-        <span class="rc-tool-tile__t">System optimizer</span>
-        <span class="rc-tool-tile__d">Image / asset optimisation</span>
-      </a>
-      <a href="?tab=tenants" class="rc-tool-tile">
-        <i class="fa-solid fa-building-user text-indigo-700"></i>
-        <span class="rc-tool-tile__t">Tenant setup</span>
-        <span class="rc-tool-tile__d">Hosts, modules, matrix</span>
-      </a>
-      <a href="/tools/file_tree.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-folder-tree text-slate-600"></i>
-        <span class="rc-tool-tile__t">File tree</span>
-        <span class="rc-tool-tile__d">Deploy path inventory</span>
-      </a>
-      <?php endif; ?>
-
-      <?php if ($__isSa): ?>
-      <a href="?tab=monitor" class="rc-tool-tile">
-        <i class="fa-solid fa-heart-pulse text-rose-600"></i>
-        <span class="rc-tool-tile__t">Monitor / Diagnostics</span>
-        <span class="rc-tool-tile__d">System About, libraries, host map, logs</span>
-      </a>
-      <a href="?tab=opt" class="rc-tool-tile">
-        <i class="fa-solid fa-gauge-high text-indigo-600"></i>
-        <span class="rc-tool-tile__t">Optimisation Suite</span>
-        <span class="rc-tool-tile__d">JSON normalise, media optimise, layout migrate</span>
-      </a>
-      <a href="?tab=tenants" class="rc-tool-tile">
-        <i class="fa-solid fa-building-user text-slate-700"></i>
-        <span class="rc-tool-tile__t">Tenant Setup</span>
-        <span class="rc-tool-tile__d">Module matrix, Windows installers, portfolio</span>
-      </a>
-      <button type="button" class="rc-tool-tile text-left w-full" onclick="document.getElementById('rc-build-installers-btn')?location.href='?tab=tenants':location.href='?tab=tenants'">
-        <i class="fa-brands fa-windows text-sky-600"></i>
-        <span class="rc-tool-tile__t">Windows Installers</span>
-        <span class="rc-tool-tile__d">Build ARP installers for all tenants</span>
-      </button>
-      <?php endif; ?>
-
-      <?php if ($__isAd): ?>
-      <button type="button" class="rc-tool-tile text-left w-full" @click="flushCache()">
-        <i class="fa-solid fa-broom text-amber-600"></i>
-        <span class="rc-tool-tile__t">Flush OPcache</span>
-        <span class="rc-tool-tile__d">Clear PHP opcode cache on this host</span>
-      </button>
-      <a href="/tools/opcache_status.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-microchip text-slate-600"></i>
-        <span class="rc-tool-tile__t">OPcache status</span>
-        <span class="rc-tool-tile__d">Memory, hit rate, cached scripts</span>
-      </a>
-      <a href="/tools/diagnostics.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-stethoscope text-teal-600"></i>
-        <span class="rc-tool-tile__t">Diagnostics report</span>
-        <span class="rc-tool-tile__d">Extended runtime diagnostics</span>
-      </a>
-      <a href="/tools/file_tree.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-folder-tree text-amber-700"></i>
-        <span class="rc-tool-tile__t">File tree</span>
-        <span class="rc-tool-tile__d">Deployed path inventory</span>
-      </a>
-      <a href="/tools/flush_cache.php" target="_blank" rel="noopener" class="rc-tool-tile">
-        <i class="fa-solid fa-eraser text-rose-600"></i>
-        <span class="rc-tool-tile__t">Flush cache (page)</span>
-        <span class="rc-tool-tile__d">Alternate flush entry</span>
-      </a>
-      <?php endif; ?>
-
+    <div class="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3" x-show="checks && checks.length" x-cloak>
+      <template x-for="c in checks" :key="c.id || c.label">
+        <div class="rounded-xl border px-3 py-3"
+             :class="c.ok === false ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-slate-50'">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500" x-text="c.label"></div>
+          <div class="mt-1 text-sm font-bold" :class="c.ok === false ? 'text-rose-700' : 'text-slate-800'" x-text="c.detail || (c.ok === false ? 'Needs attention' : 'OK')"></div>
+        </div>
+      </template>
+    </div>
+    <div class="p-4 text-sm text-slate-500" x-show="!checks || !checks.length">
+      Run <strong>Recheck health</strong> to refresh this summary.
     </div>
   </section>
 
   <?php if ($__isAd): ?>
-  <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-    <h3 class="text-sm font-bold text-slate-800 mb-2">CRM role pack</h3>
-    <p class="text-[11px] text-slate-500 mb-2">Non-admin users only see tabs allowed by this pack.</p>
-    <div class="flex flex-wrap gap-2 items-center">
-      <select x-model="crmPack" class="h-9 px-2 rounded-lg border text-sm">
-        <option value="logistics">Logistics</option>
-        <option value="hr">HR</option>
-        <option value="readonly">Read only</option>
-      </select>
-      <button type="button" @click="savePack()" class="h-9 px-3 rounded-lg bg-blue-600 text-white text-xs font-bold">Apply pack</button>
+  <!-- 2. Maintenance — single optimiser suite -->
+  <section id="rc-maintain" class="scroll-mt-20 space-y-3" aria-labelledby="rc-health-maintain">
+    <div class="px-1">
+      <h2 id="rc-health-maintain" class="text-sm font-bold text-slate-800">Maintenance suite</h2>
+      <p class="text-[11px] text-slate-500 mt-0.5">
+        One run handles schema tidy-up, junk file removal, expired sessions, cache rebuild, and OPcache flush.
+        Take a backup before destructive cleanup.
+      </p>
     </div>
-    <p class="text-[11px] text-slate-400 mt-2">Scheduled reminders: use Task Scheduler against the reminders tool (token required) — do not share the token in chat.</p>
-  </div>
+    <?php
+      $optPanelCompact = false;
+      $optPartial = __DIR__ . '/../partials/optimizer_panel.php';
+      if (is_file($optPartial)) {
+          require $optPartial;
+      } else {
+          echo '<div class="p-4 rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-900">Optimiser panel is missing on this host.</div>';
+      }
+    ?>
+  </section>
   <?php endif; ?>
 
-  <ul class="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-50 shadow-sm">
-    <template x-for="c in checks" :key="c.name">
-      <li class="flex items-center justify-between px-4 py-3 text-sm">
-        <span class="font-medium text-slate-700" x-text="c.name"></span>
-        <span class="text-xs font-bold" :class="c.ok ? 'text-emerald-600' : 'text-red-600'"
-              x-text="c.ok ? ('OK' + (c.value!=null ? ' · '+c.value : '')) : 'FAIL'"></span>
-      </li>
-    </template>
-  </ul>
+  <!-- 3. Reports — people / print / export -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" aria-labelledby="rc-health-reports">
+    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">
+      <h2 id="rc-health-reports" class="text-sm font-bold text-slate-800">Reports</h2>
+      <p class="text-[11px] text-slate-500 mt-0.5">Printable and downloadable outputs for people and compliance — not system maintenance.</p>
+    </div>
+    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <a href="/tools/print_directory.php" target="_blank" rel="noopener" class="rc-tool-tile">
+        <i class="fa-solid fa-print text-slate-700" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Print directory</span>
+        <span class="rc-tool-tile__d">Team photo cards for notice boards</span>
+      </a>
+      <a href="/tools/export_team_csv.php" class="rc-tool-tile">
+        <i class="fa-solid fa-file-csv text-slate-700" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Team CSV</span>
+        <span class="rc-tool-tile__d">Spreadsheet of the directory</span>
+      </a>
+      <a href="/tools/export_vcf.php" class="rc-tool-tile">
+        <i class="fa-solid fa-address-book text-emerald-700" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">vCard pack</span>
+        <span class="rc-tool-tile__d">Import contacts into phones</span>
+      </a>
+      <a href="/blood_report.php" target="_blank" rel="noopener" class="rc-tool-tile">
+        <i class="fa-solid fa-droplet text-rose-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Blood group roster</span>
+        <span class="rc-tool-tile__d">Signed-in report for HR / admin</span>
+      </a>
+      <a href="?tab=statistics" class="rc-tool-tile">
+        <i class="fa-solid fa-chart-pie text-indigo-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Statistics panel</span>
+        <span class="rc-tool-tile__d">Counts and breakdowns inside the portal</span>
+      </a>
+      <a href="?tab=audit" class="rc-tool-tile">
+        <i class="fa-solid fa-clipboard-list text-slate-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Audit ledger</span>
+        <span class="rc-tool-tile__d">Who changed what (admin)</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 4. Tools — everyday links (not the optimiser) -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" aria-labelledby="rc-health-tools">
+    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">
+      <h2 id="rc-health-tools" class="text-sm font-bold text-slate-800">Tools</h2>
+      <p class="text-[11px] text-slate-500 mt-0.5">Handy links. Heavy cleanup stays in <strong>Maintenance suite</strong> above.</p>
+    </div>
+    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <a href="/health.php" target="_blank" rel="noopener" class="rc-tool-tile">
+        <i class="fa-solid fa-heart-pulse text-emerald-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Uptime probe</span>
+        <span class="rc-tool-tile__d">Public JSON for external monitors</span>
+      </a>
+      <?php if ($__isAd): ?>
+      <button type="button" @click="backup()" class="rc-tool-tile text-left w-full">
+        <i class="fa-solid fa-file-zipper text-emerald-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Backup data zip</span>
+        <span class="rc-tool-tile__d">Snapshot this organisation’s data</span>
+      </button>
+      <a href="/tools/backup.php" target="_blank" rel="noopener" class="rc-tool-tile">
+        <i class="fa-solid fa-download text-blue-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Backup page</span>
+        <span class="rc-tool-tile__d">Alternate download UI</span>
+      </a>
+      <a href="/tools/diagnostics.php" target="_blank" rel="noopener" class="rc-tool-tile">
+        <i class="fa-solid fa-stethoscope text-indigo-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Host diagnostics</span>
+        <span class="rc-tool-tile__d">PHP extensions, paths, limits</span>
+      </a>
+      <a href="#rc-maintain" class="rc-tool-tile">
+        <i class="fa-solid fa-broom text-amber-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Cache &amp; cleanup</span>
+        <span class="rc-tool-tile__d">Use Maintenance suite — one run does it all</span>
+      </a>
+      <?php endif; ?>
+      <a href="?tab=team" class="rc-tool-tile">
+        <i class="fa-solid fa-users text-blue-700" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Team directory</span>
+        <span class="rc-tool-tile__d">People, cards, signatures</span>
+      </a>
+      <a href="?tab=numero" class="rc-tool-tile">
+        <i class="fa-solid fa-wand-magic-sparkles text-violet-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Numerology</span>
+        <span class="rc-tool-tile__d">Open the numero workspace</span>
+      </a>
+      <a href="/janam_patri.php" target="_blank" rel="noopener" class="rc-tool-tile">
+        <i class="fa-solid fa-om text-amber-700" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Janam Patri</span>
+        <span class="rc-tool-tile__d">Chart form (or from a team profile)</span>
+      </a>
+    </div>
+  </section>
+
+  <?php if ($__isSa): ?>
+  <!-- 5. Super Admin only -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" aria-labelledby="rc-health-sa">
+    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50">
+      <h2 id="rc-health-sa" class="text-sm font-bold text-slate-800">Control plane</h2>
+      <p class="text-[11px] text-slate-500 mt-0.5">Super Admin only — tenants, live monitor, brand assets.</p>
+    </div>
+    <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <a href="?tab=monitor" class="rc-tool-tile">
+        <i class="fa-solid fa-heart-pulse text-rose-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Live monitor</span>
+        <span class="rc-tool-tile__d">Infrastructure diagnostics</span>
+      </a>
+      <a href="?tab=tenants" class="rc-tool-tile">
+        <i class="fa-solid fa-building-user text-slate-700" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Tenant setup</span>
+        <span class="rc-tool-tile__d">Provision and map organisations</span>
+      </a>
+      <a href="?tab=brandlogos" class="rc-tool-tile">
+        <i class="fa-solid fa-trademark text-blue-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Brand logos</span>
+        <span class="rc-tool-tile__d">Master logo library</span>
+      </a>
+      <a href="?tab=access" class="rc-tool-tile">
+        <i class="fa-solid fa-user-shield text-indigo-600" aria-hidden="true"></i>
+        <span class="rc-tool-tile__t">Access mode</span>
+        <span class="rc-tool-tile__d">Role / pack controls</span>
+      </a>
+    </div>
+  </section>
+  <?php endif; ?>
+
 </div>
+
 <style>
-.rc-tool-tile{
-  display:flex; flex-direction:column; align-items:flex-start; gap:4px;
-  padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0;
-  background:#fafbfc; text-decoration:none; color:inherit;
-  transition:border-color .15s, background .15s, box-shadow .15s;
-  cursor:pointer; font:inherit;
-}
-.rc-tool-tile:hover{
-  border-color:#93c5fd; background:#eff6ff; box-shadow:0 1px 2px rgba(15,23,42,.06);
-}
-.rc-tool-tile i{ font-size:1.1rem; margin-bottom:2px; }
-.rc-tool-tile__t{ font-size:13px; font-weight:800; color:#0f172a; }
-.rc-tool-tile__d{ font-size:11px; color:#64748b; line-height:1.35; }
+  .rc-tool-tile {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;
+    padding: 0.9rem 1rem; border-radius: 0.9rem; border: 1px solid #e2e8f0;
+    background: #fff; text-decoration: none; color: inherit;
+    transition: border-color .15s, box-shadow .15s;
+    min-height: 5.5rem;
+  }
+  .rc-tool-tile:hover { border-color: #93c5fd; box-shadow: 0 4px 14px rgba(15,23,42,.06); }
+  .rc-tool-tile i { font-size: 1.1rem; margin-bottom: 0.2rem; }
+  .rc-tool-tile__t { font-size: 0.85rem; font-weight: 800; color: #0f172a; }
+  .rc-tool-tile__d { font-size: 0.7rem; color: #64748b; line-height: 1.35; }
+  html[data-theme="dark"] .rc-tool-tile,
+  [data-theme="dark"] .rc-tool-tile { background: #0f172a; border-color: #1e293b; }
+  html[data-theme="dark"] .rc-tool-tile__t,
+  [data-theme="dark"] .rc-tool-tile__t { color: #f1f5f9; }
+  html[data-theme="dark"] .rc-tool-tile__d,
+  [data-theme="dark"] .rc-tool-tile__d { color: #94a3b8; }
 </style>
+
 <script>
-function valueHealth() {
-  return {
-    checks: [], msg: '', crmPack: 'logistics',
-    isAdmin: <?= $__isAd ? 'true' : 'false' ?>,
+document.addEventListener('alpine:init', () => {
+  if (window.__valueHealthRegistered) return;
+  window.__valueHealthRegistered = true;
+  Alpine.data('valueHealth', () => ({
+    msg: '',
+    checks: [],
+    isAdmin: !!(window.__DASHBOARD_STATE__ && window.__DASHBOARD_STATE__.auth && window.__DASHBOARD_STATE__.auth.isAdmin),
     async run() {
-      const fd = new FormData(); fd.append('action','health');
+      this.msg = 'Checking…';
       try {
-        const r = await (await fetch('api_value.php',{method:'POST',body:fd,credentials:'same-origin'})).json();
-        this.checks = r.checks || r.items || [];
-        this.msg = r.status === 'ok' || r.status === 'success' ? 'Health check complete' : (r.message || '');
+        const r = await fetch('api_value.php?action=health', { credentials: 'same-origin', cache: 'no-store' });
+        const j = await r.json();
+        this.checks = Array.isArray(j.checks) ? j.checks : (j.items || []);
+        this.msg = j.ok === false ? (j.message || 'Health check reported issues') : (j.message || 'All checked areas look fine');
       } catch (e) {
-        this.msg = 'Health check failed: ' + (e.message || e);
+        this.msg = 'Could not reach health API — try again';
+        this.checks = [];
       }
     },
     async backup() {
-      this.msg = 'Creating backup…';
-      const fd = new FormData(); fd.append('action','backup_create');
+      this.msg = 'Preparing backup…';
       try {
-        const r = await (await fetch('api_value.php',{method:'POST',body:fd,credentials:'same-origin'})).json();
-        this.msg = (r.status==='ok'||r.status==='success')
-          ? ('Backup ready' + (r.file ? (' · ' + r.file) : '') + (r.files ? (' · ' + r.files + ' files') : ''))
-          : (r.message || 'Backup failed');
-        if (r.download || r.url) window.open(r.download || r.url, '_blank');
+        const csrf = (window.__DASHBOARD_STATE__ && window.__DASHBOARD_STATE__.csrf) || document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const r = await fetch('api_value.php', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+          body: JSON.stringify({ action: 'backup', csrf_token: csrf })
+        });
+        const j = await r.json();
+        if (j.download_url || j.url) {
+          window.location.href = j.download_url || j.url;
+          this.msg = 'Backup started';
+        } else {
+          this.msg = j.message || (j.ok ? 'Backup ready' : 'Backup failed');
+        }
       } catch (e) {
-        this.msg = 'Backup failed: ' + (e.message || e);
-      }
-    },
-    async savePack() {
-      const fd = new FormData();
-      fd.append('action','role_set_crm_pack');
-      fd.append('pack', this.crmPack);
-      try {
-        const r = await (await fetch('api_value.php',{method:'POST',body:fd,credentials:'same-origin'})).json();
-        this.msg = r.status==='ok' ? ('CRM pack set to ' + r.crm_pack + ' — users should refresh') : (r.message || 'Failed');
-      } catch (e) {
-        this.msg = String(e.message||e);
+        this.msg = 'Backup request failed';
       }
     }
-  };
+  }));
+});
+// Deep-link from old ?tab=opt bookmarks
+if (location.hash === '#rc-maintain' || new URLSearchParams(location.search).get('section') === 'maintain') {
+  requestAnimationFrame(() => {
+    const el = document.getElementById('rc-maintain');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 </script>

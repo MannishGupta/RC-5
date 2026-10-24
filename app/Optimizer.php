@@ -385,7 +385,7 @@ class SystemDataOptimizer
              
             $okRoot = false;
             foreach ($roots as $root) {
-                if ($real === $root || strpos($real, $root . DIRECTORY_SEPARATOR) === 0) {
+                if ($real === $root || str_starts_with($real, $root . DIRECTORY_SEPARATOR)) {
                     $okRoot = true;
                     break;
                 }
@@ -835,7 +835,7 @@ class SystemDataOptimizer
                 }
             }
             if (!empty($m['email'])) {
-                $m['email'] = strtolower(trim((string) $m['email']));
+                $m['email'] = (((string) $m['email']) |> trim(...) |> strtolower(...));
             }
             if (!empty($m['phone']) && class_exists('AppSlug')) {
                 $p = AppSlug::normalizePhone((string) $m['phone']);
@@ -868,7 +868,7 @@ class SystemDataOptimizer
             if (!is_array($m)) {
                 continue;
             }
-            $slug = strtolower(trim((string) ($m['slug'] ?? '')));
+            $slug = (((string) ($m['slug'] ?? '')) |> trim(...) |> strtolower(...));
             if (!empty($m['slug_locked'])) {
                 $skipped++;
                 continue;
@@ -951,7 +951,7 @@ class SystemDataOptimizer
                 AppDB::save($ns, $rows);
                 $rows = AppDB::read($ns);
             }
-            $count = is_array($rows) ? count(array_filter($rows, 'is_array')) : 0;
+            $count = is_array($rows) ? count(array_filter($rows, is_array(...))) : 0;
             $byKey = [];
             if (is_array($rows)) {
                 foreach ($rows as $i => $m) {
@@ -959,7 +959,7 @@ class SystemDataOptimizer
                         continue;
                     }
                     foreach (['slug', 'id', 'code', 'tag_id', 'plate', 'phone', 'mobile'] as $k) {
-                        $v = strtolower(trim((string)($m[$k] ?? '')));
+                        $v = (((string)($m[$k] ?? '')) |> trim(...) |> strtolower(...));
                         if ($v !== '') {
                             $byKey[$k . ':' . $v] = (int)$i;
                         }
@@ -988,11 +988,11 @@ class SystemDataOptimizer
                 if (!is_array($m)) {
                     continue;
                 }
-                $slug = strtolower(trim((string)($m['slug'] ?? '')));
+                $slug = (((string)($m['slug'] ?? '')) |> trim(...) |> strtolower(...));
                 if ($slug !== '') {
                     $legacy[$slug] = $i;
                 }
-                $id = strtolower(trim((string)($m['id'] ?? '')));
+                $id = (((string)($m['id'] ?? '')) |> trim(...) |> strtolower(...));
                 if ($id !== '') {
                     $legacy[$id] = $i;
                 }
@@ -1220,7 +1220,7 @@ class SystemDataOptimizer
                             return (string) $exts[$pref];
                         }
                     }
-                    return (string) reset($exts);
+                    return (string) (array_first($exts) ?? '');
                 }
             }
             return '';
@@ -1231,7 +1231,7 @@ class SystemDataOptimizer
                 return (string) $alts[$pref];
             }
         }
-        return (string) reset($alts);
+        return (string) (array_first($alts) ?? '');
     }
 
     /** Heal all known media JSON namespaces (not only mediakit). */
@@ -2565,7 +2565,7 @@ class SystemDataOptimizer
             }
             if ($teamFile !== '') {
                 $pre = json_decode((string)@file_get_contents($teamFile), true);
-                $preN = is_array($pre) ? count(array_filter($pre, 'is_array')) : 0;
+                $preN = is_array($pre) ? count(array_filter($pre, is_array(...))) : 0;
                 $allLogs[] = 'Pre-scan team.json records: ' . $preN;
             } else {
                 $allLogs[] = 'Pre-scan team.json records: 0 (file missing — will seed empty template if needed)';

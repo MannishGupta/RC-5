@@ -96,7 +96,7 @@ $_mcDriver    = $core['driver']    ?? 1;
 $_mcConductor = $core['conductor'] ?? 1;
 $_mcPsychic   = (int)$_mcDriver;
 $_mcDestiny   = (int)$_mcConductor;
-if (!isset($_mcFriends))  $_mcFriends  = json_encode(array_map('intval', $report['lucky_driver']['friends'] ?? []));
+if (!isset($_mcFriends))  $_mcFriends  = json_encode(array_map(intval(...), $report['lucky_driver']['friends'] ?? []));
 if (!isset($_mcNum))      $_mcNum      = json_encode((string)($report['mobile']['display'] ?? 'N/A'));
 if (!isset($_mcRoot))     $_mcRoot     = (int)($report['mobile']['root'] ?? 0);
 if (!isset($_mcScore))    $_mcScore    = (int)($report['mobile']['score'] ?? 0);
@@ -119,7 +119,7 @@ $_mmCond    = (int)($core['conductor'] ?? 1);
 $_mmPsychic = $_mmDriver;
 $_mmDestiny = $_mmCond;
 $_mmFriends = isset($_mcFriends) ? $_mcFriends
-            : json_encode(array_map('intval', $report['lucky_driver']['friends'] ?? []));
+            : json_encode(array_map(intval(...), $report['lucky_driver']['friends'] ?? []));
 ?>
 <script>
 'use strict';

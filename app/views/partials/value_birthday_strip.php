@@ -13,7 +13,7 @@ $team = [];
 if (class_exists('AppDB')) {
     $raw = AppDB::read('team');
     if (is_array($raw)) {
-        $team = array_values(array_filter($raw, 'is_array'));
+        $team = array_values(array_filter($raw, is_array(...)));
     }
 }
 $tz = new DateTimeZone('Asia/Kolkata');

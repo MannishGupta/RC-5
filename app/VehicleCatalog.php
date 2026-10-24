@@ -307,7 +307,7 @@ final class VehicleCatalog
 
     private static function slugify(string $s): string
     {
-        $s = strtolower(trim($s));
+        $s = (($s) |> trim(...) |> strtolower(...));
         $s = preg_replace('/[^a-z0-9]+/', '-', $s) ?? $s;
         return trim($s, '-');
     }
@@ -465,7 +465,7 @@ final class VehicleCatalog
 
     public static function searchVehicleTags(string $query, int $limit = 25): array
     {
-        $q = strtolower(trim($query));
+        $q = (($query) |> trim(...) |> strtolower(...));
         $hits = [];
         foreach (self::$catalog as $make => $meta) {
             foreach ($meta['models'] as $model => $info) {

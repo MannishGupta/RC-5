@@ -126,7 +126,7 @@ final class AiClient
     /** Infer context pack from user text or explicit kind */
     public static function detectKind(string $text, string $explicit = ''): string
     {
-        $e = strtolower(trim($explicit));
+        $e = (($explicit) |> trim(...) |> strtolower(...));
         $allowed = ['general','sales','team','mediakit','company','status','metals','calendar','comms','full'];
         if (in_array($e, $allowed, true)) {
             return $e;
@@ -221,7 +221,7 @@ final class AiClient
     public static function tenantContext(string $kind = 'general'): string
     {
         $bits = [];
-        $kind = strtolower(trim($kind));
+        $kind = (($kind) |> trim(...) |> strtolower(...));
         if ($kind === '') {
             $kind = 'general';
         }
@@ -245,8 +245,9 @@ final class AiClient
         if ($want('company') || $want('sales') || $want('comms')) {
             $co = AppDB::read('company') ?: [];
             if (is_array($co)) {
-                if (isset($co[0]) && is_array($co[0])) {
-                    $co = $co[0];
+                $firstCo = array_first($co);
+                if (is_array($firstCo)) {
+                    $co = $firstCo;
                 }
                 $name = trim((string)($co['name'] ?? ''));
                 $web = trim((string)($co['website'] ?? ''));

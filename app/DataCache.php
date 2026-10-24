@@ -88,7 +88,7 @@ class AppDataCache
 
     public static function put(string $ns, $data): void
     {
-        $ns = strtolower(trim($ns));
+        $ns = (($ns) |> trim(...) |> strtolower(...));
         if ($ns === '') {
             return;
         }
@@ -137,7 +137,7 @@ class AppDataCache
 
     public static function get(string $ns): ?array
     {
-        $ns = strtolower(trim($ns));
+        $ns = (($ns) |> trim(...) |> strtolower(...));
         if ($ns === '') {
             return null;
         }
@@ -169,7 +169,7 @@ class AppDataCache
 
     public static function invalidate(string $ns): void
     {
-        $ns = strtolower(trim($ns));
+        $ns = (($ns) |> trim(...) |> strtolower(...));
         $pdo = self::pdo();
         if ($pdo) {
             try {

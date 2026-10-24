@@ -61,7 +61,7 @@
                 $planeColors = ['blue','rose','amber','purple','emerald','pink','yellow','teal'];
                 $completedPlanes = []; $partialPlanes = []; $missingPlanes = [];
                 foreach ($planeKeys as $pk) {
-                    $nums = array_map('intval', explode('-', $pk));
+                    $nums = array_map(intval(...), explode('-', $pk));
                     $present = array_filter($nums, function($n) use ($gc){ return ((int)($gc[$n] ?? 0)) > 0; });
                     if (count($present) === 3) $completedPlanes[] = $pk;
                     elseif (count($present) > 0) $partialPlanes[] = $pk;

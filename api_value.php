@@ -347,7 +347,7 @@ switch ($action) {
             }
             $checks[] = ['name' => $label, 'ok' => $ok, 'path' => $path];
         }
-        $checks[] = ['name' => 'php_version', 'ok' => version_compare(PHP_VERSION, '8.1.0', '>='), 'value' => PHP_VERSION, 'recommended' => '8.2+ (production target 8.4.x)'];
+        $checks[] = ['name' => 'php_version', 'ok' => version_compare(PHP_VERSION, '8.1.0', '>='), 'value' => PHP_VERSION, 'recommended' => '8.5.0+ (production target 8.5.12+)'];
         $checks[] = ['name' => 'ext_intl', 'ok' => class_exists('NumberFormatter'), 'value' => extension_loaded('intl') ? 'intl' : 'missing'];
         $mapKey = '';
         foreach ([BASE_PATH . '/data/registry_config.php', BASE_PATH . '/data/auth_config.php'] as $cf) {

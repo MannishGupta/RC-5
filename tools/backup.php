@@ -52,19 +52,19 @@ function rc_backup_collect(string $dir, string $prefix, array &$out): void
         $abs = str_replace('\\', '/', $f->getPathname());
         $rel = $prefix . '/' . ltrim(substr($abs, strlen($dirNorm)), '/');
         $name = $f->getFilename();
-        if (strpos($rel, '/sessions/') !== false) {
+        if (str_contains($rel, '/sessions/')) {
             continue;
         }
-        if (strpos($rel, '/logs/') !== false) {
+        if (str_contains($rel, '/logs/')) {
             continue;
         }
-        if (strpos($rel, '/backups/') !== false) {
+        if (str_contains($rel, '/backups/')) {
             continue;
         }
-        if (strpos($rel, '/cache/') !== false) {
+        if (str_contains($rel, '/cache/')) {
             continue;
         }
-        if (strpos($rel, '/tmp/') !== false) {
+        if (str_contains($rel, '/tmp/')) {
             continue;
         }
         if (preg_match('/\.tmp$/i', $name)) {

@@ -75,9 +75,9 @@ set_exception_handler(function (\Throwable $e): void {
     }
     $accept = (string)($_SERVER['HTTP_ACCEPT'] ?? '');
     $ctype  = (string)($_SERVER['CONTENT_TYPE'] ?? '');
-    $isJson = (strpos($accept, 'application/json') !== false)
-        || (strpos($ctype, 'json') !== false)
-        || (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && strpos($ctype, 'json') !== false);
+    $isJson = (str_contains($accept, 'application/json'))
+        || (str_contains($ctype, 'json'))
+        || (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && str_contains($ctype, 'json'));
     if (!headers_sent()) {
          
         if ($isJson) {
@@ -133,7 +133,7 @@ register_shutdown_function(function () {
     if (!headers_sent() && ob_get_level() > 0 && ob_get_length() === 0) {
         http_response_code(500);
         $accept = (string)($_SERVER['HTTP_ACCEPT'] ?? '');
-        if (strpos($accept, 'application/json') !== false) {
+        if (str_contains($accept, 'application/json')) {
             echo json_encode(['status' => 'error', 'message' => 'An unexpected server error occurred.']);
         } else {
             echo "<div style='font-family:sans-serif;padding:2rem;text-align:center;color:#b91c1c'>Something went wrong. The issue has been logged.</div>";
@@ -403,7 +403,7 @@ if (!empty($rawSlug)) {
                 $_GET['slug'] = $actualSlug;
                 require $viewFile;
                 $html = ob_get_clean();
-                $out = strpos($html, '<head>') !== false ? str_replace('<head>', "<head>\n" . $seoTags, $html) : $seoTags . $html;
+                $out = str_contains($html, '<head>') ? str_replace('<head>', "<head>\n" . $seoTags, $html) : $seoTags . $html;
                 if (class_exists('CardCache') && empty($_GET['nocache'])) {
                     CardCache::put($cardType, $actualSlug, $out);
                     header('X-RC-Card-Cache: MISS');
@@ -511,7 +511,7 @@ if (is_file($psiTokenFile)) {
     $psiAllowIps = [];
     if (preg_match('/^(.*?)\s+ips=([0-9a-fA-F,:.]+)\s*$/', $psiRawLine, $pm)) {
         $psiExpected = trim($pm[1]);
-        $psiAllowIps = array_values(array_filter(array_map('trim', explode(',', $pm[2]))));
+        $psiAllowIps = array_values(array_filter(array_map(trim(...), explode(',', $pm[2]))));
     }
     if ($psiAge > 21600) {  
         if (class_exists('AppLog') && empty($GLOBALS['RC_PSI_EXPIRED_LOGGED'])) {
@@ -573,7 +573,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     }
 
     $contentType = (string)($_SERVER["CONTENT_TYPE"] ?? '');
-    if (strpos($contentType, 'application/json') !== false) {
+    if (str_contains($contentType, 'application/json')) {
         $input = json_decode((string)file_get_contents('php://input'), true) ?: [];
         if (!is_array($input)) {
             $input = [];
@@ -702,7 +702,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && in_array($action, ['probe_do
         $path = rtrim(str_replace('\\', '/', DOC_PATH), '/') . '/' . $file;
         $realDoc = realpath(DOC_PATH);
         $realFile = is_file($path) ? realpath($path) : false;
-        if ($realDoc === false || $realFile === false || strpos($realFile, $realDoc) !== 0) {
+        if ($realDoc === false || $realFile === false || !str_starts_with($realFile, $realDoc)) {
             sendJson(['ok' => false, 'bytes' => 0, 'error' => 'Not found']);
         }
         $bytes = (int) filesize($realFile);
@@ -1572,7 +1572,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     if ($path === '') {
                         $path = '/';
                     }
-                    $ss = strtolower(trim((string)($p['samesite'] ?? 'Lax')));
+                    $ss = (((string)($p['samesite'] ?? 'Lax')) |> trim(...) |> strtolower(...));
                     if (!in_array($ss, ['lax', 'strict', 'none'], true)) {
                         $ss = 'lax';
                     }
@@ -1655,7 +1655,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'blood_group' => 'blood_group', 'gender' => 'gender',
         ];
         foreach ($header as $i => $h) {
-            $key = strtolower(trim((string)$h));
+            $key = (((string)$h) |> trim(...) |> strtolower(...));
             if (isset($allowed[$key])) {
                 $map[$i] = $allowed[$key];
             }
@@ -1674,8 +1674,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             if (!is_array($m)) {
                 continue;
             }
-            $s = strtolower(trim((string)($m['slug'] ?? '')));
-            $e = strtolower(trim((string)($m['email'] ?? '')));
+            $s = (((string)($m['slug'] ?? '')) |> trim(...) |> strtolower(...));
+            $e = (((string)($m['email'] ?? '')) |> trim(...) |> strtolower(...));
             if ($s !== '') {
                 $slugUsed[$s] = true;
             }
@@ -1724,8 +1724,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             } elseif ($slug === '') {
                 $slug = trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($name)) ?? '', '-');
             }
-            $slug = strtolower(trim((string)$slug));
-            $email = strtolower(trim($rec['email']));
+            $slug = (((string)$slug) |> trim(...) |> strtolower(...));
+            $email = (($rec['email']) |> trim(...) |> strtolower(...));
             if ($slug === '' || isset($slugUsed[$slug]) || ($email !== '' && isset($emailUsed[$email]))) {
                 $skipped++;
                 continue;
@@ -1766,7 +1766,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             http_response_code(403);
             sendJson(['status' => 'error', 'message' => 'Super Admin required.']);
         }
-        $kind = strtolower(trim((string)($input['kind'] ?? $_POST['kind'] ?? '')));
+        $kind = (((string)($input['kind'] ?? $_POST['kind'] ?? '')) |> trim(...) |> strtolower(...));
         if (!in_array($kind, ['banks', 'oems'], true)) {
             sendJson(['status' => 'error', 'message' => 'kind must be banks or oems.']);
         }
@@ -1860,7 +1860,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $path = rtrim(str_replace('\\', '/', DOC_PATH), '/') . '/' . $file;
             $realDoc = realpath(DOC_PATH);
             $realFile = is_file($path) ? realpath($path) : false;
-            if ($realDoc === false || $realFile === false || strpos($realFile, $realDoc) !== 0) {
+            if ($realDoc === false || $realFile === false || !str_starts_with($realFile, $realDoc)) {
                 sendJson(['ok' => false, 'bytes' => 0, 'error' => 'Not found in vault']);
             }
             $bytes = (int) filesize($realFile);
@@ -1931,7 +1931,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             http_response_code(403);
             sendJson(['status' => 'error', 'message' => 'Only Super Admin may switch roles.']);
         }
-        $target = strtolower(trim((string)($input['role'] ?? $_GET['role'] ?? '')));
+        $target = (((string)($input['role'] ?? $_GET['role'] ?? '')) |> trim(...) |> strtolower(...));
         $map = [
             'super_admin' => 'super_admin',
             'superadmin' => 'super_admin',
@@ -1972,11 +1972,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             http_response_code(403);
             sendJson(['status' => 'error', 'message' => 'Super Admin required to provision tenants.']);
         }
-        $host = strtolower(trim((string)($input['host'] ?? $input['domain'] ?? '')));
+        $host = (((string)($input['host'] ?? $input['domain'] ?? '')) |> trim(...) |> strtolower(...));
         $host = preg_replace('#^https?://#', '', $host);
         $host = rtrim($host, '/');
         $host = preg_replace('/:\d+$/', '', $host);
-        $tenantId = strtolower(trim((string)($input['tenant_id'] ?? $input['id'] ?? '')));
+        $tenantId = (((string)($input['tenant_id'] ?? $input['id'] ?? '')) |> trim(...) |> strtolower(...));
         $tenantId = preg_replace('/[^a-z0-9\-]/', '', $tenantId);
         $displayName = trim((string)($input['name'] ?? $input['company_name'] ?? ''));
         if ($host === '' && $tenantId === '') {
@@ -2113,7 +2113,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
          
         $newHosts = [];
         foreach (preg_split('/[\s,;]+/', $hostsRaw) ?: [] as $h) {
-            $h = strtolower(trim($h));
+            $h = (($h) |> trim(...) |> strtolower(...));
             $h = preg_replace('#^https?://#', '', $h);
             $h = rtrim($h, '/');
             if ($h !== '' && preg_match('/^[a-z0-9.\-]+$/', $h)) {
@@ -2717,7 +2717,7 @@ return " . var_export($_merged, true) . ";
             sendJson(['status' => 'error', 'message' => 'Media folder not writable: ' . str_replace('\\', '/', (string)$destDir)]);
         }
 
-        $lbg = strtolower(trim((string)($input['logo_bg'] ?? $_POST['logo_bg'] ?? $co['logo_bg'] ?? 'auto')));
+        $lbg = (((string)($input['logo_bg'] ?? $_POST['logo_bg'] ?? $co['logo_bg'] ?? 'auto')) |> trim(...) |> strtolower(...));
         if (!in_array($lbg, ['auto', 'light', 'dark'], true)) {
             $lbg = 'auto';
         }
@@ -2989,7 +2989,7 @@ return " . var_export($_merged, true) . ";
             http_response_code(400); sendJson(['status' => 'error', 'message' => 'Invalid JSON payload structure.']);
         }
         if ($ns === 'company' && isset($input['logo_bg']) && is_array($newData)) {
-            $newData['logo_bg'] = strtolower(trim((string)$input['logo_bg']));
+            $newData['logo_bg'] = (((string)$input['logo_bg']) |> trim(...) |> strtolower(...));
         }
 
          
@@ -3042,7 +3042,7 @@ return " . var_export($_merged, true) . ";
                 $newData['name'] = mb_convert_case(mb_strtolower(trim((string)$newData['name']), 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
             }
             if (!empty($newData['email'])) {
-                $newData['email'] = strtolower(trim((string)$newData['email']));
+                $newData['email'] = (((string)$newData['email']) |> trim(...) |> strtolower(...));
             }
             if ($ns === 'team' && !empty($newData['phone']) && class_exists('AppSlug')) {
                 $newData['phone'] = AppSlug::normalizePhone((string)$newData['phone']);
@@ -3057,7 +3057,7 @@ return " . var_export($_merged, true) . ";
                 sendJson(['status' => 'error', 'message' => 'Organization Name is required.']);
             }
             if (isset($newData['slug'])) {
-                $newData['slug'] = preg_replace('/[^a-z0-9\-]+/', '', strtolower(trim(basename(str_replace('\\', '/', (string)$newData['slug'])))));
+                $newData['slug'] = preg_replace('/[^a-z0-9\-]+/', '', ((basename(str_replace('\\', '/', (string)$newData['slug']))) |> trim(...) |> strtolower(...)));
                 if ($newData['slug'] !== '') {
                     $existing = AppDB::read($ns);
                     if (is_array($existing) && $ns !== 'company') {
@@ -3080,7 +3080,7 @@ return " . var_export($_merged, true) . ";
                         (string)($newData['phone'] ?? '')
                     );
                 }
-                $newData['slug'] = preg_replace('/[^a-z0-9\-]+/', '', strtolower(trim(basename(str_replace('\\', '/', (string)$newData['slug'])))));
+                $newData['slug'] = preg_replace('/[^a-z0-9\-]+/', '', ((basename(str_replace('\\', '/', (string)$newData['slug']))) |> trim(...) |> strtolower(...)));
             }
         }
 
@@ -3196,7 +3196,7 @@ return " . var_export($_merged, true) . ";
 
                     $destDir = (class_exists(\App\Rc\Support\UploadDest::class, false) || class_exists('App\Rc\Support\UploadDest'))
                         ? \App\Rc\Support\UploadDest::forField((string)$field)
-                        : ((strpos($field, 'doc') !== false) ? DOC_PATH : IMG_PATH);
+                        : ((str_contains($field, 'doc')) ? DOC_PATH : IMG_PATH);
                     if (!is_dir($destDir)) {
                         @mkdir($destDir, 0775, true);
                     }
@@ -3355,7 +3355,7 @@ return " . var_export($_merged, true) . ";
                             }
                         }
                         if ($field === 'logo' && $ns === 'company') {
-                            $bgMode = strtolower(trim((string)($newData['logo_bg'] ?? $input['logo_bg'] ?? 'auto')));
+                            $bgMode = (((string)($newData['logo_bg'] ?? $input['logo_bg'] ?? 'auto')) |> trim(...) |> strtolower(...));
                             if ($bgMode === '' || $bgMode === 'auto') {
                                 $lum = rc_logo_mean_luminance($destPath);
                                 if ($lum === null) {
@@ -3564,7 +3564,7 @@ if ($ns === 'docs') {
                         $__row['id'] = $__mid;
                     }
                     if (isset($__mkSeenId[$__mid])) continue;
-                    $__fp = strtolower(trim((string)($__row['name'] ?? ''))) . '|' . strtolower(trim((string)($__row['file'] ?? $__row['photo'] ?? ''))) . '|' . strtolower(trim((string)($__row['caption'] ?? '')));
+                    $__fp = (((string)($__row['name'] ?? '')) |> trim(...) |> strtolower(...)) . '|' . (((string)($__row['file'] ?? $__row['photo'] ?? '')) |> trim(...) |> strtolower(...)) . '|' . (((string)($__row['caption'] ?? '')) |> trim(...) |> strtolower(...));
                     if ($__fp !== '||' && isset($__mkSeenFp[$__fp])) continue;
                     $__mkSeenId[$__mid] = true;
                     if ($__fp !== '||') $__mkSeenFp[$__fp] = true;
@@ -3658,7 +3658,7 @@ if ($ns === 'docs') {
                         $row[$to] = $row[$lowerMap[$fromKey]];
                     }
                     foreach (array_keys($row) as $k) {
-                        if (strtolower(trim($k)) === strtolower($from) && !isset($row[$to])) {
+                        if ((($k) |> trim(...) |> strtolower(...)) === strtolower($from) && !isset($row[$to])) {
                             $row[$to] = $row[$k];
                         }
                     }
@@ -3710,7 +3710,7 @@ if ($ns === 'docs') {
                 $existing = [];
             }
              
-            $existing = array_values(array_filter($existing, 'is_array'));
+            $existing = array_values(array_filter($existing, is_array(...)));
             $byId = [];
             $bySlug = [];
             $byAcc = [];  
@@ -3730,8 +3730,8 @@ if ($ns === 'docs') {
                 $row = $normalizeRow($raw, $ns);
                 if ($row === []) { $skipped++; continue; }
 
-                $id = strtolower(trim((string)($row['id'] ?? '')));
-                $slug = strtolower(trim((string)($row['slug'] ?? '')));
+                $id = (((string)($row['id'] ?? '')) |> trim(...) |> strtolower(...));
+                $slug = (((string)($row['slug'] ?? '')) |> trim(...) |> strtolower(...));
                 $matchIdx = null;
                 if ($id !== '' && isset($byId[$id])) $matchIdx = $byId[$id];
                 elseif ($slug !== '' && isset($bySlug[$slug])) $matchIdx = $bySlug[$slug];
@@ -3897,7 +3897,7 @@ if (file_exists($dashboardFile)) {
         }
          
         if ($rows !== [] && !isset($rows[0]) && !isset($rows['id']) && !isset($rows['name'])) {
-            $rows = array_values(array_filter($rows, 'is_array'));
+            $rows = array_values(array_filter($rows, is_array(...)));
         } elseif (isset($rows['id']) || isset($rows['name']) || isset($rows['file'])) {
              
             if ($k !== 'company') {

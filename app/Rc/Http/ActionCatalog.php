@@ -24,7 +24,7 @@ final class ActionCatalog
 
     public static function isKnown(string $action): bool
     {
-        $action = strtolower(trim($action));
+        $action = (($action) |> trim(...) |> strtolower(...));
         if ($action === '') {
             return true;
         }

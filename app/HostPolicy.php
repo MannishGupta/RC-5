@@ -17,7 +17,7 @@ class HostPolicy
 
     public static function isHostAllowed(string $host): bool
     {
-        $host = strtolower(trim($host));
+        $host = (($host) |> trim(...) |> strtolower(...));
         if (str_contains($host, ':')) {
             $host = explode(':', $host, 2)[0];
         }

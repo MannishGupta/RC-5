@@ -7,7 +7,7 @@ if (!defined('BASE_PATH')) {
     define('BASE_PATH', $base);
 }
 
-$domain = strtolower(trim((string)($_GET['d'] ?? $_GET['domain'] ?? '')));
+$domain = (((string)($_GET['d'] ?? $_GET['domain'] ?? '')) |> trim(...) |> strtolower(...));
 $domain = preg_replace('/^https?:\/\//', '', $domain) ?? '';
 $domain = preg_replace('/\/.*$/', '', $domain) ?? '';
 $domain = preg_replace('/[^a-z0-9.\-]/', '', $domain) ?? '';

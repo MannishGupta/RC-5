@@ -52,7 +52,7 @@ usort($activeProjects, static function ($a, $b) {
 });
 $activeProjects = array_slice($activeProjects, 0, 4);
 
-$recent = array_values(array_filter($updates, 'is_array'));
+$recent = array_values(array_filter($updates, is_array(...)));
 usort($recent, static fn($a, $b) => $stTs((string) ($b['date'] ?? '')) <=> $stTs((string) ($a['date'] ?? '')));
 $recent = array_slice($recent, 0, 3);
 

@@ -551,7 +551,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             header('Location: admin.php?tab=analytics&msg=' . urlencode('Nothing was selected.'));
             exit;
         }
-        [$hkDeleted, $hkFreed, $hkRefused] = housekeepingDelete(array_map('strval', $sel));
+        [$hkDeleted, $hkFreed, $hkRefused] = housekeepingDelete(array_map(strval(...), $sel));
         $msg = $hkDeleted . ' unused file(s) deleted (' . round($hkFreed / 1024, 1) . ' KB freed).';
         if ($hkRefused) {
             $msg .= ' Refused: ' . implode('; ', array_slice($hkRefused, 0, 3));
@@ -707,7 +707,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     if ($action === 'bulk_delete' && !empty($_POST['selected_updates']) && is_array($_POST['selected_updates'])) {
         $updates  = readStoreForWrite(UPD_FILE);
-        $toDelete = array_map('strval', $_POST['selected_updates']);
+        $toDelete = array_map(strval(...), $_POST['selected_updates']);
         $updates  = array_values(array_filter($updates, fn($u) => !in_array((string)$u['id'], $toDelete, true)));
         
         [$projMap, $compMap] = buildMaps(safeReadJson(PROJ_FILE), safeReadJson(COMP_FILE));

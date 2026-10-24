@@ -130,7 +130,7 @@ class ChaldeaMobileEngine {
 
          
         $last4 = substr($clean, -4);
-        $last4Digits = array_map('intval', str_split($last4));
+        $last4Digits = array_map(intval(...), str_split($last4));
         $seqCheck = self::checkSequence($last4Digits);
 
          

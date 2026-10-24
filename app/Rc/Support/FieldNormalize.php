@@ -17,7 +17,7 @@ final class FieldNormalize
             }
         }
         if (!empty($data['email']) && is_string($data['email'])) {
-            $data['email'] = strtolower(trim($data['email']));
+            $data['email'] = (($data['email']) |> trim(...) |> strtolower(...));
         }
         if (!empty($data['phone']) && is_string($data['phone']) && class_exists('AppSlug', false)) {
             $data['phone'] = \AppSlug::normalizePhone($data['phone']);

@@ -45,7 +45,7 @@ final class RolePack
             if (in_array('*', $tabs, true)) {
                 return null;
             }
-            $list = array_values(array_map('strval', $tabs));
+            $list = array_values(array_map(strval(...), $tabs));
             // Ensure company admins never lose Organisation Setup if pack is mis-named
             if (($user === 'admin' || $user === 'crm') && !in_array('company', $list, true)) {
                 $list[] = 'company';

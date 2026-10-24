@@ -1,5 +1,5 @@
 <?php
-// Version: 5.0.0 (PHP 8.5.12+) (PHP 8.2–8.5.12 compatible)
+// Version: 5.0.0 (PHP 8.5.12+) (PHP 8.5.12+ only)
 /**
  * Version: 4.1.1 — Scriptable 6.3 compatible JSON + date query
  * Target: Web, iOS Scriptable, Android KWGT / PWA

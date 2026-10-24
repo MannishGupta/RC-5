@@ -5,7 +5,7 @@
  * Endpoint: /metals.php | /metals.php?format=json | /metals.php?embed=1
  * Markets: Delhi NCR / MCX commodities + INR FX (USD, EUR, GBP, AED, CNY)
  * Timezone: Asia/Kolkata (IST) | Locales: en-IN, hi-IN
- * PHP: 8.2+ (curl handles auto-closed; no 8.5-only syntax so 8.2/8.4 hosts keep working)
+ * PHP: 8.2+ (curl handles auto-closed; PHP 8.5.12+ only — pipe no 8.5-only syntax so 8.5.12+ only native array helpers)
  */
 declare(strict_types=1);
 

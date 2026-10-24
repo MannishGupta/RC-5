@@ -18,7 +18,7 @@ if (!empty($_GET['ajax']) && $_GET['ajax'] === 'dasha') {
     }
     $name = mb_substr(trim(strip_tags((string)($_GET['name'] ?? $_POST['name'] ?? ''))), 0, 120);
     $dob  = trim(strip_tags((string)($_GET['dob'] ?? $_POST['dob'] ?? '')));
-    $sys  = strtolower(trim((string)($_GET['system'] ?? $_POST['system'] ?? 'pythagorean')));
+    $sys  = (((string)($_GET['system'] ?? $_POST['system'] ?? 'pythagorean')) |> trim(...) |> strtolower(...));
     $tgt  = trim(strip_tags((string)($_GET['target'] ?? $_POST['target'] ?? 'now')));
     if ($name === '' || $dob === '') {
         echo json_encode(['ok' => false, 'error' => 'name and dob required']);

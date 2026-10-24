@@ -43,7 +43,7 @@ $locName   = class_exists('AppLookup') ? AppLookup::map($locs) : [];
 $rcEnrichMap = static function (array $map): array {
     $out = $map;
     foreach ($map as $k => $v) {
-        $lk = strtolower(trim((string) $k));
+        $lk = (((string) $k) |> trim(...) |> strtolower(...));
         if ($lk !== '' && !isset($out[$lk])) {
             $out[$lk] = $v;
         }
@@ -116,7 +116,7 @@ $rcResolveLabel = static function (array $m, array $nameMap, array $fullMap, arr
 
 $rankOf = static function (array $m) use ($desigMap): int {
     foreach (['designation_id', 'designation_code', 'designation'] as $fk) {
-        $did = strtolower(trim((string) ($m[$fk] ?? '')));
+        $did = (((string) ($m[$fk] ?? '')) |> trim(...) |> strtolower(...));
         if ($did !== '' && isset($desigMap[$did]['rank'])) {
             return (int) $desigMap[$did]['rank'];
         }
@@ -424,14 +424,14 @@ foreach ($team as $m) {
         ['location_name', 'office', 'branch']
     );
 
-    $dKey = strtolower(trim((string) ($m['designation_id'] ?? $m['designation_code'] ?? $m['designation'] ?? '')));
-    $tKey = strtolower(trim((string) ($m['department_id'] ?? $m['department_code'] ?? $m['department'] ?? '')));
+    $dKey = (((string) ($m['designation_id'] ?? $m['designation_code'] ?? $m['designation'] ?? '')) |> trim(...) |> strtolower(...));
+    $tKey = (((string) ($m['department_id'] ?? $m['department_code'] ?? $m['department'] ?? '')) |> trim(...) |> strtolower(...));
     $dE = (string) ($desigMap[$dKey]['emoji'] ?? $desigMap[$dKey]['icon'] ?? '');
     $tE = (string) ($deptMap[$tKey]['emoji'] ?? $deptMap[$tKey]['icon'] ?? '');
-    if ($dE !== '' && $desig !== '' && mb_strpos($desig, $dE) === false) {
+    if ($dE !== '' && $desig !== '' && mb_!str_contains($desig, $dE)) {
         $desig = trim($desig . ' ' . $dE);
     }
-    if ($tE !== '' && $dept !== '' && mb_strpos($dept, $tE) === false) {
+    if ($tE !== '' && $dept !== '' && mb_!str_contains($dept, $tE)) {
         $dept = trim($dept . ' ' . $tE);
     }
     $phone = trim((string)($m['phone'] ?? $m['mobile'] ?? $m['tel'] ?? ''));
@@ -439,7 +439,7 @@ foreach ($team as $m) {
     $purl = $photoUrl($m);
     $initial = mb_strtoupper(mb_substr($name, 0, 1));
      
-    $sexRaw = strtolower(trim((string)($m['gender'] ?? $m['sex'] ?? '')));
+    $sexRaw = (((string)($m['gender'] ?? $m['sex'] ?? '')) |> trim(...) |> strtolower(...));
     $sexSym = '';
     if ($sexRaw !== '') {
         if (preg_match('/^(m|male|man|boy)/', $sexRaw)) $sexSym = '♂';

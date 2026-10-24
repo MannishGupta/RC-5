@@ -445,7 +445,7 @@ foreach ($jsonFiles as $file) {
     $namespace = str_replace('.json', '', $name);
     
      
-    $isOrphan = (strpos($codebase, $name) === false && strpos($codebase, "'$namespace'") === false && strpos($codebase, '"' . $namespace . '"') === false);
+    $isOrphan = (!str_contains($codebase, $name) && !str_contains($codebase, "'$namespace'") && !str_contains($codebase, '"' . $namespace . '"'));
     
     $statusHtml = '';
     if ($isOrphan) {

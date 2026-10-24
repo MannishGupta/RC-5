@@ -24,11 +24,11 @@ $bankN = 0;
 if (class_exists('AppDB')) {
     $t = AppDB::read('team');
     if (is_array($t)) {
-        $teamN = count(array_filter($t, 'is_array'));
+        $teamN = count(array_filter($t, is_array(...)));
     }
     $b = AppDB::read('bank');
     if (is_array($b)) {
-        $bankN = count(array_filter($b, 'is_array'));
+        $bankN = count(array_filter($b, is_array(...)));
     }
 }
 

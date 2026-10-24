@@ -15,6 +15,13 @@ require_once __DIR__ . '/../partials/tw_page.php';
     </div>
   </header>
 
+  <?php
+  $clockPartial = __DIR__ . '/../partials/public_clock_widget.php';
+  if (is_file($clockPartial)) {
+      require $clockPartial;
+  }
+?>
+
   <iframe
     src="/choghadiya.php?embed=1"
     title="Choghadiya and Panchang"

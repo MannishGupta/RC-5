@@ -47,7 +47,7 @@ final class MasterDirectory
      
     private static function findIn(array $rows, ?string $q): ?array
     {
-        $q = strtolower(trim((string)$q));
+        $q = (((string)$q) |> trim(...) |> strtolower(...));
         if ($q === '') {
             return null;
         }
@@ -110,7 +110,7 @@ final class MasterDirectory
             }
         }
 
-        $domain = strtolower(trim((string)$domain));
+        $domain = (((string)$domain) |> trim(...) |> strtolower(...));
         $domain = preg_replace('/^https?:\/\//', '', $domain) ?? '';
         $domain = preg_replace('/\/.*$/', '', $domain) ?? '';
         if ($domain === '') {
@@ -125,10 +125,10 @@ final class MasterDirectory
     public static function logoCandidates(string $domain, string $kind = 'banks', string $slug = ''): array
     {
         $out = [];
-        $domain = strtolower(trim($domain));
+        $domain = (($domain) |> trim(...) |> strtolower(...));
         $domain = preg_replace('/^https?:\/\//', '', $domain) ?? '';
         $domain = preg_replace('/\/.*$/', '', $domain) ?? '';
-        $slug = strtolower(trim(preg_replace('/[^a-z0-9\-]/', '', $slug) ?? ''));
+        $slug = ((preg_replace('/[^a-z0-9\-]/', '', $slug) ?? '') |> trim(...) |> strtolower(...));
         $base = defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__);
 
         if (($kind === 'oems' || $kind === 'vehicle_oems') && class_exists('VehicleCatalog') === false) {

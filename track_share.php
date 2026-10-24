@@ -100,7 +100,7 @@ foreach ($desigs as $d) {
         continue;
     }
     foreach (['id', 'code', 'slug', 'name'] as $f) {
-        $k = strtolower(trim((string) ($d[$f] ?? '')));
+        $k = (((string) ($d[$f] ?? '')) |> trim(...) |> strtolower(...));
         if ($k !== '') {
             $trackDesigKeys[$k] = true;
         }
@@ -111,7 +111,7 @@ $trackable = [];
 foreach ($team as $m) {
     $keys = [];
     foreach (['designation_id', 'designation_code', 'designation', 'designation_name', 'labels'] as $f) {
-        $k = strtolower(trim((string) ($m[$f] ?? '')));
+        $k = (((string) ($m[$f] ?? '')) |> trim(...) |> strtolower(...));
         if ($k !== '') {
             $keys[] = $k;
         }

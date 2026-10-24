@@ -354,7 +354,7 @@
                     <?php if (!empty($cR['combined_missing'])): ?>
                     <p class="text-center text-[9px] text-slate-400 mt-2">
                         <?= $lang==='hi' ? 'संयुक्त विकास क्षेत्र: ' : 'Joint growth zones: ' ?>
-                        <strong class="text-rose-500"><?= implode(', ', array_map('intval', $cR['combined_missing'])) ?></strong>
+                        <strong class="text-rose-500"><?= implode(', ', array_map(intval(...), $cR['combined_missing'])) ?></strong>
                     </p>
                     <?php endif; ?>
                 </div>

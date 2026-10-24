@@ -206,7 +206,7 @@ foreach ($optFn as $fn => $why) {
 
 // Disabled functions (expected on many shared hosts)
 $disabledRaw = (string) ini_get('disable_functions');
-$disabled = array_filter(array_map('trim', explode(',', strtolower($disabledRaw))));
+$disabled = array_filter(array_map(trim(...), explode(',', strtolower($disabledRaw))));
 $risky = ['exec', 'shell_exec', 'system', 'passthru', 'proc_open', 'popen'];
 $disabledHit = array_values(array_intersect($risky, $disabled));
 $optional[] = row(

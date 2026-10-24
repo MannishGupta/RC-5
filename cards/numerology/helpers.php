@@ -8,14 +8,14 @@ function nr_lang(): string {
     if (isset($GLOBALS['lang']) && is_string($GLOBALS['lang']) && $GLOBALS['lang'] !== '') {
         return $GLOBALS['lang'] === 'en' ? 'en' : 'hi';
     }
-    $q = strtolower(trim((string)($_GET['lang'] ?? '')));
+    $q = (((string)($_GET['lang'] ?? '')) |> trim(...) |> strtolower(...));
     if (in_array($q, ['en', 'en_in', 'english'], true)) {
         return 'en';
     }
     if (in_array($q, ['hi', 'hi_in', 'hindi'], true)) {
         return 'hi';
     }
-    $c = strtolower(trim((string)($_COOKIE['rc_lang'] ?? $_COOKIE['nr_lang'] ?? '')));
+    $c = (((string)($_COOKIE['rc_lang'] ?? $_COOKIE['nr_lang'] ?? '')) |> trim(...) |> strtolower(...));
     return ($c === 'en') ? 'en' : 'hi';
 }
 
@@ -113,10 +113,10 @@ function getGrowthLabel(string $sev): string {
 
 function getStatusColor(string $status): string {
      
-    if (strpos($status, 'Supportive') !== false || strpos($status, 'Aligned') !== false || strpos($status, 'Friendly') !== false) {
+    if (str_contains($status, 'Supportive') || str_contains($status, 'Aligned') || str_contains($status, 'Friendly')) {
         return 'bg-teal-100 text-teal-900 border border-teal-600 font-semibold';
     }
-    if (strpos($status, 'Neutral') !== false) {
+    if (str_contains($status, 'Neutral')) {
         return 'bg-amber-100 text-amber-950 border border-amber-600 border-dashed font-semibold';
     }
     return 'bg-violet-100 text-violet-950 border border-violet-700 border-dotted font-semibold';

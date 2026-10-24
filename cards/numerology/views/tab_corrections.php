@@ -36,9 +36,9 @@
                 <div class="flex-1">
                     <div class="text-sm font-bold text-slate-800 dark:text-white"><?= htmlspecialchars((string)($report['name_matrix']['conflict']['desc']??'')) ?></div>
                     <div class="text-xs text-slate-500 mt-1">
-                        Energies Healed by Name: <span class="text-emerald-600 font-bold"><?= implode(', ',array_map('intval',$report['name_matrix']['conflict']['healed']??[]))?:'None' ?></span>
+                        Energies Healed by Name: <span class="text-emerald-600 font-bold"><?= implode(', ',array_map(intval(...),$report['name_matrix']['conflict']['healed']??[]))?:'None' ?></span>
                         &nbsp;·&nbsp;
-                        Creative Tension Points: <span class="text-amber-600 dark:text-amber-400 font-bold"><?= implode(', ',array_map('intval',$report['name_matrix']['conflict']['excess']??[]))?:'None' ?></span>
+                        Creative Tension Points: <span class="text-amber-600 dark:text-amber-400 font-bold"><?= implode(', ',array_map(intval(...),$report['name_matrix']['conflict']['excess']??[]))?:'None' ?></span>
                     </div>
                 </div>
                 <?php
@@ -167,7 +167,7 @@
                     const fLetters  = name.trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g,'');
                     const firstVal  = fLetters.split('').reduce((s,c)=>s+(this.chaldean[c]||0),0);
                     const driver    = <?= (int)($core['driver']??1) ?>;
-                    const friends   = <?= json_encode(array_map('intval', $report['lucky_driver']['friends']??[])) ?>;
+                    const friends   = <?= json_encode(array_map(intval(...), $report['lucky_driver']['friends']??[])) ?>;
                     const mkEntry = (compound, label) => {
                         const root = this.reduce(compound);
                         let status = 'Neutral';
@@ -257,7 +257,7 @@
                     <i class="fa-solid fa-circle-info text-indigo-400 text-[10px]"></i>
                     <span class="text-[10px] text-indigo-700 dark:text-indigo-300 font-semibold">
                         <?= $lang==='hi'?'चालक':'Driver' ?> <?= (int)$core['driver'] ?> ·
-                        <?= $lang==='hi'?'अनुकूल':'Friendly' ?>: <?= implode(', ', array_map('intval', $report['lucky_driver']['friends']??[])) ?>
+                        <?= $lang==='hi'?'अनुकूल':'Friendly' ?>: <?= implode(', ', array_map(intval(...), $report['lucky_driver']['friends']??[])) ?>
                     </span>
                     <span class="ml-auto text-[9px] font-bold text-indigo-500 cursor-pointer hover:text-indigo-700"
                           @click="corrName=''; $nextTick(()=>document.querySelector('#custom-name-input')?.focus())"><?= $lang==='hi'?'रीसेट':'Reset' ?></span>

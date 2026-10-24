@@ -94,7 +94,7 @@ class AppUtils {
         return json_encode($d, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR) ?: '[]';
     }
     public static function sanitizeSlug($r) {
-        return preg_replace('/[^a-z0-9\-_]/', '', strtolower(trim((string)$r)));
+        return preg_replace('/[^a-z0-9\-_]/', '', (((string)$r) |> trim(...) |> strtolower(...)));
     }
 
     public static function getBaseUrl() {
@@ -160,19 +160,19 @@ class AppUtils {
     public static function getFullUrl($path) {
         if (!$path) return '';
         $path = (string)$path;
-        if (strpos($path, 'http') === 0) {
+        if (str_starts_with($path, 'http')) {
             return $path;
         }
          
         if (isset($path[0]) && $path[0] === '?') {
             return rtrim(self::getBaseUrl(), '/') . '/' . $path;
         }
-        if (strpos($path, 'card=') !== false) {
+        if (str_contains($path, 'card=')) {
             return rtrim(self::getBaseUrl(), '/') . '/?' . ltrim($path, '?');
         }
          
         $trim = ltrim($path, '/');
-        if ($trim !== '' && strpos($trim, '/') === false && preg_match('/^[a-z0-9][a-z0-9\-_]*$/i', $trim)) {
+        if ($trim !== '' && !str_contains($trim, '/') && preg_match('/^[a-z0-9][a-z0-9\-_]*$/i', $trim)) {
             return self::getCardUrl($trim, 'business');
         }
         $script = (string)($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '/');
@@ -242,7 +242,7 @@ class AppSlug {
     }
 
     public static function isProtected(string $slug): bool {
-        return in_array(strtolower(trim($slug)), self::PROTECTED_SLUGS, true);
+        return in_array((($slug) |> trim(...) |> strtolower(...)), self::PROTECTED_SLUGS, true);
     }
 
     private static function extractDDMMYY(string $dob): string {
@@ -1419,7 +1419,7 @@ class AppMedia {
 
     public static function imageSpec(string $field): array
     {
-        $field = strtolower(trim($field));
+        $field = (($field) |> trim(...) |> strtolower(...));
         $hasSanitiser = method_exists(__CLASS__, 'sanitizeSvg');
         $specs = [
              
@@ -2022,7 +2022,7 @@ class AppMedia {
 class CardContext {
     public static function get($s) {
         $s = (string)$s;
-        if (strpos($s, 'adhoc:') === 0) return null;
+        if (str_starts_with($s, 'adhoc:')) return null;
         $s = AppUtils::sanitizeSlug($s);
 
         $team = AppDB::read('team');
@@ -2193,7 +2193,7 @@ if (!class_exists('AppLookup')) {
                     }
                     foreach (array_keys($keys) as $key) {
                         $map[(string) $key] = $val;
-                        $lk = strtolower(trim((string) $key));
+                        $lk = (((string) $key) |> trim(...) |> strtolower(...));
                         if ($lk !== '' && !isset($map[$lk])) {
                             $map[$lk] = $val;
                         }
@@ -2294,7 +2294,7 @@ if (!class_exists('AppSEO')) {
 
             $encodePath = function ($path) {
                 if (!$path) return '';
-                return implode('/', array_map('rawurlencode', explode('/', ltrim((string)$path, '/'))));
+                return implode('/', array_map(rawurlencode(...), explode('/', ltrim((string)$path, '/'))));
             };
 
             $faviconUrl = !empty($comp['favicon']) ? $baseUrl . '/images/' . $encodePath($comp['favicon']) : $baseUrl . '/favicon.png';
@@ -2473,7 +2473,7 @@ if (!class_exists('AppSEO')) {
                 if ($ogFile && file_exists(IMG_PATH . DIRECTORY_SEPARATOR . $ogFile)) {
                     $img = $baseUrl . '/images/' . $encodePath($ogFile);
                 } elseif (!empty($p['photo'])) {
-                    $img = strpos((string)$p['photo'], 'http') === 0 ? $p['photo'] : $baseUrl . '/images/' . $encodePath($p['photo']);
+                    $img = str_starts_with((string)$p['photo'], 'http') ? $p['photo'] : $baseUrl . '/images/' . $encodePath($p['photo']);
                 } else {
                     $img = 'https://ui-avatars.com/api/?name=' . urlencode($safeName) . '&background=1e40af&color=ffffff&size=630&bold=true&font-size=0.33&length=2';
                 }

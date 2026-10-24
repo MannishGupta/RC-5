@@ -17,7 +17,7 @@ require_once BASE_PATH . '/app/bootstrap.php';
 header('X-Robots-Tag: noindex, nofollow');
 header('X-Content-Type-Options: nosniff');
 
-$kind = strtolower(trim((string)($_GET['kind'] ?? 'photo')));
+$kind = (((string)($_GET['kind'] ?? 'photo')) |> trim(...) |> strtolower(...));
 if (!in_array($kind, ['photo', 'logo'], true)) {
     $kind = 'photo';
 }
@@ -222,7 +222,7 @@ $rasterizeSvg = static function (string $path, string $blob, int $w, int $h) : ?
     $tmpSvg = sys_get_temp_dir() . '/rc_sig_' . bin2hex(random_bytes(6)) . '.svg';
     $tmpPng = sys_get_temp_dir() . '/rc_sig_' . bin2hex(random_bytes(6)) . '.png';
     $wrote = @file_put_contents($tmpSvg, $blob);
-    if ($wrote !== false && function_exists('exec') && !in_array('exec', array_map('trim', explode(',', (string)ini_get('disable_functions'))), true)) {
+    if ($wrote !== false && function_exists('exec') && !in_array('exec', array_map(trim(...), explode(',', (string)ini_get('disable_functions'))), true)) {
         $cmds = [
             'rsvg-convert -w ' . (int)max($w * 2, 64) . ' -h ' . (int)max($h * 2, 64) . ' -f png -o ' . escapeshellarg($tmpPng) . ' ' . escapeshellarg($tmpSvg) . ' 2>/dev/null',
             'magick -background none -density 384 ' . escapeshellarg($tmpSvg) . ' -resize ' . (int)($w * 2) . 'x' . (int)($h * 2) . ' -resize ' . (int)$w . 'x' . (int)$h . ' ' . escapeshellarg($tmpPng) . ' 2>/dev/null',

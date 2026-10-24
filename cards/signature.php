@@ -205,118 +205,172 @@ $socialRowHtml = static function (array $socials) use ($e): string {
     return '<tr><td style="padding:8px 0 2px;text-align:left;">' . $inner . '</td></tr>';
 };
 
+/**
+ * Full signature — dual-theme (light + dark) card layout.
+ * Base inline styles target light clients; <style> + prefers-color-scheme
+ * adapts text/borders/backgrounds in Apple Mail, Outlook.com, iOS Mail, etc.
+ * Classic Outlook desktop ignores the media query and keeps the light look.
+ */
 $sigFull = static function (array $d) use ($e, $socialRowHtml): string {
     $photo  = (string)($d['photo'] ?? '');
     $logo   = (string)($d['logo'] ?? '');
     $orient = (string)($d['logo_orient'] ?? 'landscape');
     $hex    = (string)($d['hex'] ?? '1e3a5f');
+    $name   = (string)($d['name'] ?? '');
+    $role   = (string)($d['role'] ?? '');
+    $org    = (string)($d['org'] ?? '');
+    $phone  = (string)($d['phone'] ?? '');
+    $email  = (string)($d['email'] ?? '');
+    $addr   = (string)($d['address'] ?? '');
+    $web    = (string)($d['website'] ?? '');
+    $land   = (string)($d['landline'] ?? '');
+    $card   = (string)($d['cardUrl'] ?? '');
+    $uid    = 'rcsig' . substr(hash('sha256', $name . '|' . $email . '|' . $org), 0, 10);
 
-     
-    $left = '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">';
+    // Contact lines with text labels (icon fonts are unreliable in mail clients)
+    $contactRows = '';
+    if ($phone !== '') {
+        $tel = preg_replace('/[^0-9+]/', '', $phone) ?? '';
+        $contactRows .= '<tr><td class="rc-sig-muted" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.45;padding:2px 0;color:#475569;">'
+            . '<span style="color:#94a3b8;">☎</span>&nbsp;'
+            . '<a class="rc-sig-link" href="tel:' . $e($tel) . '" style="color:#334155;text-decoration:none;">' . $e($phone) . '</a>'
+            . '</td></tr>';
+    }
+    if ($email !== '') {
+        $contactRows .= '<tr><td class="rc-sig-muted" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.45;padding:2px 0;color:#475569;">'
+            . '<span style="color:#94a3b8;">✉</span>&nbsp;'
+            . '<a class="rc-sig-link" href="mailto:' . $e($email) . '" style="color:#334155;text-decoration:none;">' . $e($email) . '</a>'
+            . '</td></tr>';
+    }
+    if ($addr !== '') {
+        $contactRows .= '<tr><td class="rc-sig-muted" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.4;padding:2px 0;color:#64748b;max-width:280px;">'
+            . '<span style="color:#94a3b8;">⌖</span>&nbsp;' . $e($addr)
+            . '</td></tr>';
+    }
+    if ($land !== '') {
+        $contactRows .= '<tr><td class="rc-sig-muted" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.4;padding:2px 0;color:#64748b;">'
+            . 'T: ' . $e($land) . '</td></tr>';
+    }
+    if ($web !== '') {
+        $wShow = preg_replace('~^https?://~i', '', $web) ?? $web;
+        $wShow = rtrim((string)$wShow, '/');
+        $contactRows .= '<tr><td class="rc-sig-muted" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.4;padding:2px 0;color:#64748b;">'
+            . '<a class="rc-sig-accent" href="' . $e($web) . '" style="color:#' . $e($hex) . ';text-decoration:none;">' . $e($wShow) . '</a>'
+            . '</td></tr>';
+    }
+
+    $photoCell = '';
     if ($photo !== '') {
-        $left .= '<tr><td style="padding:0 0 8px 0;">'
-            . '<img src="' . $e($photo) . '" width="64" height="64" alt="" '
-            . 'style="display:block;width:64px;height:64px;border-radius:6px;object-fit:cover;border:0;" />'
-            . '</td></tr>';
+        $photoCell = '<td class="rc-sig-photo" valign="top" style="vertical-align:top;padding:0 14px 0 0;">'
+            . '<img src="' . $e($photo) . '" width="72" height="72" alt="' . $e($name) . '" '
+            . 'style="display:block;width:72px;height:72px;border-radius:10px;object-fit:cover;border:0;" />'
+            . '</td>';
     }
-    $left .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#111111;line-height:1.25;padding:0;">'
-        . $e($d['name']) . '</td></tr>';
-    if ($d['role'] !== '') {
-        $left .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:600;color:#' . $e($hex) . ';line-height:1.3;padding:2px 0 0 0;">'
-            . $e($d['role']) . '</td></tr>';
-    }
-    if ($d['dept'] !== '') {
-        $left .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#64748b;line-height:1.3;padding:1px 0 0 0;">'
-            . $e($d['dept']) . '</td></tr>';
-    }
-    if ($d['phone'] !== '') {
-        $tel = preg_replace('/[^0-9+]/', '', $d['phone']) ?? '';
-        $left .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#334155;line-height:1.4;padding:6px 0 0 0;">'
-            . 'M: <a href="tel:' . $e($tel) . '" style="color:#334155;text-decoration:none;">' . $e($d['phone']) . '</a></td></tr>';
-    }
-    if ($d['email'] !== '') {
-        $left .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#334155;line-height:1.4;padding:1px 0 0 0;">'
-            . 'E: <a href="mailto:' . $e($d['email']) . '" style="color:#334155;text-decoration:none;">' . $e($d['email']) . '</a></td></tr>';
-    }
-    $left .= '</table>';
 
-     
-    $right = '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">';
-    if ($logo !== '' && $orient !== 'portrait') {
-         
-        $right .= '<tr><td style="padding:0 0 6px 0;">'
-            . '<img src="' . $e($logo) . '" alt="' . $e($d['org']) . '" width="140" '
-            . 'style="display:block;max-width:140px;max-height:48px;width:auto;height:auto;border:0;" />'
-            . '</td></tr>';
+    $logoBlock = '';
+    if ($logo !== '') {
+        if ($orient === 'portrait') {
+            $logoBlock = '<img src="' . $e($logo) . '" alt="' . $e($org) . '" width="64" '
+                . 'style="display:block;max-width:64px;max-height:88px;width:auto;height:auto;border:0;" />';
+        } else {
+            $logoBlock = '<img src="' . $e($logo) . '" alt="' . $e($org) . '" width="120" '
+                . 'style="display:block;max-width:120px;max-height:44px;width:auto;height:auto;border:0;" />';
+        }
     }
-    if ($logo !== '' && $orient === 'portrait') {
-        $right .= '<tr><td style="padding:0 0 6px 0;">'
-            . '<img src="' . $e($logo) . '" alt="' . $e($d['org']) . '" width="72" '
-            . 'style="display:block;max-width:72px;max-height:96px;width:auto;height:auto;border:0;" />'
-            . '</td></tr>';
-    }
-    if ($d['org'] !== '') {
-        $right .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;color:#111111;line-height:1.25;padding:0;">'
-            . $e($d['org']) . '</td></tr>';
-    }
-    if ($d['address'] !== '') {
-        $right .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#64748b;line-height:1.35;padding:3px 0 0 0;max-width:260px;">'
-            . $e($d['address']) . '</td></tr>';
-    }
-    $tw = [];
-    if ($d['landline'] !== '') {
-        $tw[] = 'T: ' . $e($d['landline']);
-    }
-    if ($d['website'] !== '') {
-        $w = preg_replace('~^https?://~i', '', $d['website']) ?? $d['website'];
-        $w = rtrim($w, '/');
-        $tw[] = 'W: <a href="' . $e($d['website']) . '" style="color:#2563eb;text-decoration:none;">' . $e($w) . '</a>';
-    }
-    if ($tw !== []) {
-        $right .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#334155;line-height:1.4;padding:4px 0 0 0;">'
-            . implode('&nbsp;|&nbsp;', $tw) . '</td></tr>';
-    }
-     
+
     $soc = $socialRowHtml($d['socials'] ?? []);
-    if ($soc !== '') {
-        $right .= $soc;
-    }
-    $right .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:10px;padding:4px 0 0 0;">'
-        . '<a href="' . $e($d['cardUrl']) . '" style="color:#94a3b8;text-decoration:none;">View digital card →</a></td></tr>';
-    $right .= '</table>';
+    $socInner = $soc !== '' ? $soc : '';
 
-     
-    return '<table cellpadding="0" cellspacing="0" border="0" '
-        . 'style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#333333;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">'
+    $mid = '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">'
+        . '<tr><td class="rc-sig-name" style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#0f172a;line-height:1.25;padding:0;">'
+        . $e($name) . '</td></tr>';
+    if ($role !== '') {
+        $mid .= '<tr><td class="rc-sig-role" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;color:#' . $e($hex) . ';line-height:1.35;padding:3px 0 0 0;">'
+            . $e($role) . '</td></tr>';
+    }
+    if ($org !== '') {
+        $mid .= '<tr><td class="rc-sig-org" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;color:#334155;line-height:1.35;padding:2px 0 6px 0;">'
+            . $e($org) . '</td></tr>';
+    }
+    $mid .= $contactRows;
+    if ($socInner !== '') {
+        $mid .= $socInner;
+    }
+    if ($card !== '') {
+        $mid .= '<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:11px;padding:6px 0 0 0;">'
+            . '<a class="rc-sig-card" href="' . $e($card) . '" style="color:#94a3b8;text-decoration:none;">View digital card →</a></td></tr>';
+    }
+    $mid .= '</table>';
+
+    $right = '';
+    if ($logoBlock !== '') {
+        $right = '<td class="rc-sig-logo" valign="top" align="right" style="vertical-align:top;padding:0 0 0 16px;text-align:right;">'
+            . $logoBlock . '</td>';
+    }
+
+    $inner = '<table cellpadding="0" cellspacing="0" border="0" role="presentation" '
+        . 'style="border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">'
         . '<tr>'
-        . '<td valign="top" style="vertical-align:top;padding:0 14px 0 0;">' . $left . '</td>'
-        . '<td valign="top" width="1" style="width:1px;border-left:1px solid #d1d5db;padding:0;font-size:0;line-height:0;">&nbsp;</td>'
-        . '<td valign="top" style="vertical-align:top;padding:0 0 0 14px;">' . $right . '</td>'
-        . '</tr>'
-        . '</table>';
+        . $photoCell
+        . '<td valign="top" style="vertical-align:top;padding:0;">' . $mid . '</td>'
+        . $right
+        . '</tr></table>';
+
+    // Outer card + dual-theme CSS (email-safe subset)
+    return '<!-- RC dual-theme signature v2 -->'
+        . '<div id="' . $e($uid) . '" class="rc-sig-root" style="color-scheme:light dark;">'
+        . '<style type="text/css">'
+        . '@media (prefers-color-scheme:dark){'
+        . '#' . $uid . ' .rc-sig-card-bg{background-color:#1e293b !important;border-color:#334155 !important;}'
+        . '#' . $uid . ' .rc-sig-name{color:#f1f5f9 !important;}'
+        . '#' . $uid . ' .rc-sig-org{color:#cbd5e1 !important;}'
+        . '#' . $uid . ' .rc-sig-muted{color:#94a3b8 !important;}'
+        . '#' . $uid . ' .rc-sig-link{color:#e2e8f0 !important;}'
+        . '#' . $uid . ' .rc-sig-card{color:#64748b !important;}'
+        . '#' . $uid . ' .rc-sig-divider{border-color:#334155 !important;}'
+        . '}'
+        . '</style>'
+        . '<table cellpadding="0" cellspacing="0" border="0" role="presentation" class="rc-sig-card-bg" '
+        . 'style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#334155;'
+        . 'border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;'
+        . 'background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">'
+        . '<tr><td style="padding:14px 16px;">' . $inner . '</td></tr>'
+        . '</table>'
+        . '</div>';
 };
 
 $sigCompact = static function (array $d) use ($e): string {
+    $hex = (string)($d['hex'] ?? '1e3a5f');
+    $uid = 'rcsigc' . substr(hash('sha256', ($d['name'] ?? '') . '|' . ($d['email'] ?? '')), 0, 8);
     $bits = [];
-    $bits[] = '<strong style="color:#111;">' . $e($d['name']) . '</strong>';
-    if ($d['role'] !== '') {
-        $bits[] = '<span style="color:#' . $e($d['hex']) . ';">' . $e($d['role']) . '</span>';
+    $bits[] = '<strong class="rc-sig-name" style="color:#0f172a;">' . $e($d['name']) . '</strong>';
+    if (($d['role'] ?? '') !== '') {
+        $bits[] = '<span class="rc-sig-role" style="color:#' . $e($hex) . ';">' . $e($d['role']) . '</span>';
     }
-    if ($d['org'] !== '') {
-        $bits[] = '<span style="color:#64748b;">' . $e($d['org']) . '</span>';
+    if (($d['org'] ?? '') !== '') {
+        $bits[] = '<span class="rc-sig-org" style="color:#64748b;">' . $e($d['org']) . '</span>';
     }
     $line2 = [];
-    if ($d['phone'] !== '') {
-        $tel = preg_replace('/[^0-9+]/', '', $d['phone']) ?? '';
-        $line2[] = '<a href="tel:' . $e($tel) . '" style="color:#334155;text-decoration:none;">' . $e($d['phone']) . '</a>';
+    if (($d['phone'] ?? '') !== '') {
+        $tel = preg_replace('/[^0-9+]/', '', (string)$d['phone']) ?? '';
+        $line2[] = '<a class="rc-sig-link" href="tel:' . $e($tel) . '" style="color:#334155;text-decoration:none;">' . $e($d['phone']) . '</a>';
     }
-    if ($d['email'] !== '') {
-        $line2[] = '<a href="mailto:' . $e($d['email']) . '" style="color:#334155;text-decoration:none;">' . $e($d['email']) . '</a>';
+    if (($d['email'] ?? '') !== '') {
+        $line2[] = '<a class="rc-sig-link" href="mailto:' . $e($d['email']) . '" style="color:#334155;text-decoration:none;">' . $e($d['email']) . '</a>';
     }
-    return '<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#334155;border-collapse:collapse;">'
+    return '<!-- RC dual-theme compact signature v2 -->'
+        . '<div id="' . $e($uid) . '" style="color-scheme:light dark;">'
+        . '<style type="text/css">'
+        . '@media (prefers-color-scheme:dark){'
+        . '#' . $uid . ' .rc-sig-name{color:#f1f5f9 !important;}'
+        . '#' . $uid . ' .rc-sig-org{color:#94a3b8 !important;}'
+        . '#' . $uid . ' .rc-sig-link{color:#e2e8f0 !important;}'
+        . '}'
+        . '</style>'
+        . '<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#334155;border-collapse:collapse;">'
         . '<tr><td style="padding:0;line-height:1.45;">' . implode(' · ', $bits) . '</td></tr>'
-        . ($line2 !== [] ? '<tr><td style="padding:2px 0 0;line-height:1.4;">' . implode(' · ', $line2) . '</td></tr>' : '')
-        . '</table>';
+        . ($line2 !== [] ? '<tr><td style="padding:3px 0 0;line-height:1.4;">' . implode(' · ', $line2) . '</td></tr>' : '')
+        . '</table></div>';
 };
 
 $payload = [
@@ -443,6 +497,24 @@ if (!isset($sigSelfUrl)) {
   .guide-table th { background:#f8fafc; font-weight:700; color:#0f172a; }
   .guide-table td { color:#334155; }
   .hint { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 12px; font-size:0.75rem; color:#1e40af; margin-bottom:14px; }
+  .preview-themes { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; align-items:center; }
+  .preview-themes span { font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.04em; }
+  .theme-btn {
+    border:1px solid #e2e8f0; background:#fff; color:#334155; border-radius:999px;
+    padding:6px 12px; font-size:0.78rem; font-weight:700; cursor:pointer;
+  }
+  .theme-btn.is-on { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .panel.is-dark-preview {
+    background:#0b1220; border-color:#1e293b;
+  }
+  .panel.is-dark-preview .meta { color:#94a3b8; }
+  /* Force dark styles inside preview when user toggles (does not change clipboard HTML) */
+  .panel.is-dark-preview .rc-sig-card-bg { background-color:#1e293b !important; border-color:#334155 !important; }
+  .panel.is-dark-preview .rc-sig-name { color:#f1f5f9 !important; }
+  .panel.is-dark-preview .rc-sig-org { color:#cbd5e1 !important; }
+  .panel.is-dark-preview .rc-sig-muted { color:#94a3b8 !important; }
+  .panel.is-dark-preview .rc-sig-link { color:#e2e8f0 !important; }
+  .panel.is-dark-preview .rc-sig-card { color:#64748b !important; }
 </style>
 </head>
 <body>
@@ -453,9 +525,12 @@ if (!isset($sigSelfUrl)) {
   </p>
 
   <div class="hint">
-    <strong>Two signatures:</strong> use <em>New messages</em> for full detail;
+    <strong>Two signatures · light &amp; dark ready:</strong>
+    use <em>New messages</em> for the full card (photo, contacts, logo, socials);
     use <em>Replies &amp; forwards</em> for a short line under quoted mail.
-    Social icons are hosted PNGs (not SVG attachments). On iPhone Mail, tap “Load Remote Content” / download pictures once so icons appear.
+    The copied HTML adapts to the reader’s light/dark mail theme where the client supports it
+    (Apple Mail, Outlook.com, many mobile apps). Classic Outlook desktop stays on the light look.
+    Social icons are hosted PNGs — on iPhone Mail, allow remote images once so icons appear.
   </div>
 
   <div class="tabs" role="tablist">
@@ -463,13 +538,19 @@ if (!isset($sigSelfUrl)) {
     <button type="button" class="tab" id="tabCompact" onclick="showSig('compact')">Replies &amp; forwards (compact)</button>
   </div>
 
+  <div class="preview-themes" role="group" aria-label="Preview theme">
+    <span>Preview</span>
+    <button type="button" class="theme-btn is-on" id="themeLight" onclick="setPreviewTheme('light')">Light</button>
+    <button type="button" class="theme-btn" id="themeDark" onclick="setPreviewTheme('dark')">Dark</button>
+  </div>
+
   <div class="panel" id="panelFull">
     <div id="sigFull"><?= $htmlFull ?></div>
-    <p class="meta">Full · person | company · logo <?= $logoOrient === 'portrait' ? 'portrait (side column style on top of company)' : 'landscape (above company name)' ?></p>
+    <p class="meta">Full card · dual-theme · logo <?= $logoOrient === 'portrait' ? 'portrait' : 'landscape' ?></p>
   </div>
   <div class="panel" id="panelCompact" style="display:none">
     <div id="sigCompact"><?= $htmlCompact ?></div>
-    <p class="meta">Compact · name, title, phone, email only</p>
+    <p class="meta">Compact · name, title, phone, email · dual-theme text</p>
   </div>
 
   <div class="actions">
@@ -654,6 +735,17 @@ function showSig(which) {
   document.getElementById('tabFull').classList.toggle('is-on', which === 'full');
   document.getElementById('tabCompact').classList.toggle('is-on', which === 'compact');
   document.getElementById('sigSource').style.display = 'none';
+}
+function setPreviewTheme(mode) {
+  var dark = mode === 'dark';
+  ['panelFull', 'panelCompact'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('is-dark-preview', dark);
+  });
+  var lightBtn = document.getElementById('themeLight');
+  var darkBtn = document.getElementById('themeDark');
+  if (lightBtn) lightBtn.classList.toggle('is-on', !dark);
+  if (darkBtn) darkBtn.classList.toggle('is-on', dark);
 }
 function toggleSrc() {
   var box = document.getElementById('sigSource');

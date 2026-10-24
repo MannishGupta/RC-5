@@ -39,6 +39,15 @@ window.__shareEventWA = function(ev) {
 };
 </script>
 
+<div class="rc-top-widgets rc-events-widgets mb-3" role="region" aria-label="Celebrations">
+<?php
+  $bdayPartial = __DIR__ . '/../partials/value_birthday_strip.php';
+  if (is_file($bdayPartial)) {
+      require $bdayPartial;
+  }
+?>
+</div>
+
 <div class="w-full flex flex-col h-full" x-data="{ eventFilter: 'all', density: 'compact' }">
     
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 bg-white p-3.5 rounded-xl shadow-sm border border-slate-200">

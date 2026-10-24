@@ -18,7 +18,7 @@ if (!defined('BASE_PATH')) {
 
 function rc_tenant_resolve_host_raw(): string
 {
-    $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost')));
+    $host = (((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost')) |> trim(...) |> strtolower(...));
     if (str_contains($host, ':')) {
         $host = explode(':', $host, 2)[0];
     }
@@ -30,7 +30,7 @@ function rc_tenant_resolve_host(): string
      
      
     $host = (string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost');
-    $host = strtolower(trim($host));
+    $host = (($host) |> trim(...) |> strtolower(...));
      
     if (str_contains($host, ':')) {
         $host = explode(':', $host, 2)[0];
@@ -99,7 +99,7 @@ function rc_tenant_resolve_host(): string
 
 function rc_tenant_sanitize_id(string $id): string
 {
-    $id = strtolower(trim($id));
+    $id = (($id) |> trim(...) |> strtolower(...));
     $id = preg_replace('/[^a-z0-9_-]+/', '', $id) ?? '';
     if ($id === '' || $id === '.' || $id === '..') {
         return 'default';
@@ -144,7 +144,7 @@ function rc_tenant_boot(): void
     $strict = !empty($map['strict_hosts']);
 
     if ($strict) {
-        $h = strtolower(trim($host));
+        $h = (($host) |> trim(...) |> strtolower(...));
         if (str_contains($h, ':')) {
             $h = explode(':', $h, 2)[0];
         }
@@ -159,7 +159,7 @@ function rc_tenant_boot(): void
     }
 
     $tenantId = rc_tenant_resolve_host();
-    $knownIds = array_values(array_unique(array_map('strval', array_values($exact))));
+    $knownIds = array_values(array_unique(array_map(strval(...), array_values($exact))));
     $tenantRoot = BASE_PATH . '/tenants/' . $tenantId;
      
     if (!is_dir($tenantRoot) && $tenantId !== 'default' && !in_array($tenantId, $knownIds, true)) {

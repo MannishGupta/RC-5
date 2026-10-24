@@ -210,7 +210,7 @@ final class SalesRegister
         $header = str_getcsv(array_shift($lines));
         $map = [];
         foreach ($header as $i => $h) {
-            $k = strtolower(trim((string)$h));
+            $k = (((string)$h) |> trim(...) |> strtolower(...));
             $k = preg_replace('/[^a-z0-9]+/', '_', $k) ?? $k;
             $map[$i] = $k;
         }

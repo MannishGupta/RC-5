@@ -51,8 +51,8 @@
                                 { id: 'access',     icon: 'fa-solid fa-user-shield',   label: 'Access Mode' },
                                 { id: 'brandlogos', icon: 'fa-solid fa-trademark',     label: 'Brand Logos' },
                                 { id: 'tenants',    icon: 'fa-solid fa-building-user', label: 'Tenant Setup' },
-                                { id: 'monitor',    icon: 'fa-solid fa-heart-pulse',   label: 'Monitor / Diagnostics' },
-                                { id: 'opt',        icon: 'fa-solid fa-gauge-high',    label: 'Optimisation Suite' },
+                                { id: 'monitor',    icon: 'fa-solid fa-heart-pulse',   label: 'Live Monitor' },
+                                // Optimiser lives inside Health & Tools (single maintenance suite)
                                 { id: 'health',     icon: 'fa-solid fa-screwdriver-wrench', label: 'Health & Tools' },
                             ]
                         });
@@ -84,13 +84,14 @@
                         { id: 'metals',    icon: 'fa-solid fa-coins',            label: 'Markets' },
                         { id: 'org',       icon: 'fa-solid fa-diagram-project',  label: 'Org Chart' },
                     ]});
-                    groups.push({ title: 'Insights', items: [
-                        { id: 'choghadiya', icon: 'fa-solid fa-sun', label: 'Choghadiya' },
+                    // Reports = human/business outputs (not system maintenance)
+                    groups.push({ title: 'Reports & insights', items: [
+                        { id: 'statistics', icon: 'fa-solid fa-chart-pie', label: 'Statistics' },
+                        { id: 'blood', icon: 'fa-solid fa-droplet', label: 'Blood group roster' },
                         { id: 'numero', icon: 'fa-solid fa-wand-magic-sparkles', label: 'Vedic Numero' },
                         { id: 'janam', icon: 'fa-solid fa-om', label: 'Janam Patri' },
-                        { id: 'blood', icon: 'fa-solid fa-droplet', label: 'Blood Report' },
+                        { id: 'choghadiya', icon: 'fa-solid fa-sun', label: 'Choghadiya' },
                         { id: 'cctv', icon: 'fa-solid fa-video', label: 'Surveillance Access' },
-                        { id: 'statistics', icon: 'fa-solid fa-chart-pie', label: 'Statistics Panel' },
                     ]});
                     if (this.isAdmin) {
                         groups.push({ title: 'Enterprise Configuration', items: [
@@ -100,9 +101,9 @@
                             { id: 'settings',     icon: 'fa-solid fa-plug',        label: 'Integrations' },
                             { id: 'leads',        icon: 'fa-solid fa-address-card',label: 'Opportunity Pipeline' },
                         ]});
-                        groups.push({ title: 'Platform Operations', items: [
-                            // monitor / opt / health live once under Control Plane (Super Admin)
-                            { id: 'health', icon: 'fa-solid fa-server',          label: 'Health & Tools' },
+                        groups.push({ title: 'Platform operations', items: [
+                            // Single hub: health includes optimiser, cache, cleanup, backups
+                            { id: 'health', icon: 'fa-solid fa-screwdriver-wrench', label: 'Health & Tools' },
                             { id: 'audit',  icon: 'fa-solid fa-clipboard-list',  label: 'Audit Ledger' },
                         ]});
                     }

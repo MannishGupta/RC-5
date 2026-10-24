@@ -106,7 +106,7 @@ $mandatory = $policy['mandatory_designations'] ?? ['Driver', 'Office Runner'];
     <div class="rounded-xl border border-slate-200 bg-white p-3">
       <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mandated designations</div>
       <div class="text-xs font-semibold text-slate-700 mt-2 leading-relaxed">
-        <?= htmlspecialchars(implode(', ', array_map('strval', (array)$mandatory))) ?>
+        <?= htmlspecialchars(implode(', ', array_map(strval(...), (array)$mandatory))) ?>
       </div>
     </div>
   </div>

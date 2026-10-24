@@ -3,7 +3,7 @@
 if (!defined('BASE_PATH') || !isset($report, $lang, $p, $core)) exit;
 
 $isHi = ($lang === 'hi');
-$gRaw = strtolower(trim((string)($p['gender'] ?? '')));
+$gRaw = (((string)($p['gender'] ?? '')) |> trim(...) |> strtolower(...));
 $genderLabel = htmlspecialchars(
     $isHi
         ? (($gRaw === 'male' || $gRaw === 'm') ? 'पुरुष' : (($gRaw === 'female' || $gRaw === 'f') ? 'महिला' : (string)($p['gender'] ?? 'अन्य')))

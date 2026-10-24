@@ -1,26 +1,14 @@
-5.1.10 (2026-10-24) — Double widget fix + tenant path hygiene
-- dashboard: widgets only on team/events (Today owns strip in tab_today.php)
-- public_live_widgets + value_birthday_strip: single-render guards
-- runners.php / runners_ui / tab_tracking: tenant DATA_PATH for team/state
-- RolePack + login: company/roles via DATA_PATH
+5.1.16 (2026-10-24) — Sidebar 4-icon row; footer=header height; widget placement
+- Left footer: Light / Dark / Reserve + Logout as 4 equal icons in one row (system removed)
+- Right pane footer height matched to header (h-16 / 4rem)
+- Full 4 widgets only on Today tab
+- Events: celebrations (birthday) strip only
+- Choghadiya: IST clock widget only
+- Sandbox PHP remains 8.3.6 (host has no php8.5 packages); production gate still 8.5+
 
-5.1.9 (2026-10-24) — Full audit on 5.1.8 baseline
-- runners.php: tenant RUNNERS_DATA_PATH/DATA_PATH (fixes empty data under multi-tenant)
-- runners.php: exclusive updateJsonFile RMW for state/history/tokens/rate/violations
-- runners.php: tracking_token + rate limits on field pings; admin/CSRF on management APIs
-- runners.php: 90-day history retention; Indian English API errors
-- Password change workflows untouched
-- Vendor pins unchanged (already current: Alpine 3.17.4, FA 7.3.1, Bootstrap 5.3.8, Chart 4.x, Quill 2.0.3, SheetJS 0.20.3)
-- a11y: skip-link, focus-visible, contrast-lock, live region already present; retained
-- Today/runners shell restore from 5.1.8 retained
-
-5.1.8 (2026-10-24) — Production restore + Today tab + data path clarity
-- ModuleRegistry::filterTabs MERGES always-on tabs (today, sales, …) instead of only filtering
-- dashboard: today/runners in validTabs + customTabs + titles; widgets on Today
-- dashboard-app.js: Office Runners nav item under Field Operations
-- Do NOT deploy over tenants/*/data or auth_config.php (password + directory data live there)
-- Host rc.arthsathi.com must resolve via tenants/map.json → tenants/arthsathi/data
-
-5.1.7 (2026-10-23) — Optimiser: all 6 hardening recommendations
-- Global media path heal (team, company, mediakit, locations, docs, cartags, bank, events)
-- Final media link verification with per-namespace missing report
+5.1.15 (2026-10-24) — Complete app-code PHP 8.5 style pass
+- Gates unchanged: PHP_VERSION_ID >= 80500
+- Remaining array_map string callbacks → first-class callables
+- end()/list [0] → array_last / array_first in audit, ModuleRegistry, InstallerBuild, AiClient
+- Tests: str_contains for containment checks
+- README: PHP 8.5 coding standard table

@@ -135,7 +135,7 @@ function d_tracking_desig_keys(): array
                 continue;
             }
             foreach (['id', 'code', 'slug', 'name'] as $f) {
-                $k = strtolower(trim((string) ($d[$f] ?? '')));
+                $k = (((string) ($d[$f] ?? '')) |> trim(...) |> strtolower(...));
                 if ($k !== '') {
                     $keys[$k] = true;
                 }
@@ -179,7 +179,7 @@ function d_team(): array
             $memberTrack = d_truthy($row['is_tracking_enabled'] ?? $row['mandatory_live_tracking'] ?? false);
             $desigHit = false;
             foreach (['designation_id', 'designation_code', 'designation', 'designation_name', 'labels'] as $f) {
-                $k = strtolower(trim((string) ($row[$f] ?? '')));
+                $k = (((string) ($row[$f] ?? '')) |> trim(...) |> strtolower(...));
                 if ($k !== '' && isset($trackKeys[$k])) {
                     $desigHit = true;
                     break;

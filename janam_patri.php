@@ -112,13 +112,13 @@ function jp_lang(): string {
     if ($lang !== null) {
         return $lang;
     }
-    $q = strtolower(trim((string)($_GET['lang'] ?? '')));
+    $q = (((string)($_GET['lang'] ?? '')) |> trim(...) |> strtolower(...));
     if ($q === 'en' || $q === 'en_in' || $q === 'english') {
         $lang = 'en';
     } elseif ($q === 'hi' || $q === 'hi_in' || $q === 'hindi') {
         $lang = 'hi';
     } else {
-        $c = strtolower(trim((string)($_COOKIE['jp_lang'] ?? '')));
+        $c = (((string)($_COOKIE['jp_lang'] ?? '')) |> trim(...) |> strtolower(...));
         $lang = ($c === 'en') ? 'en' : 'hi';
     }
     if (!headers_sent()) {
@@ -313,7 +313,7 @@ function jp_load_profiles(): array {
         return [];
     }
     $data = json_decode((string)file_get_contents($path), true);
-    return is_array($data) ? array_values(array_filter($data, 'is_array')) : [];
+    return is_array($data) ? array_values(array_filter($data, is_array(...))) : [];
 }
 function jp_save_profiles(array $profiles): bool {
     $path = jp_storage('profiles.json');
@@ -358,7 +358,7 @@ function jp_load_team(): array {
         return [];
     }
     $data = json_decode((string)file_get_contents($path), true);
-    return is_array($data) ? array_values(array_filter($data, 'is_array')) : [];
+    return is_array($data) ? array_values(array_filter($data, is_array(...))) : [];
 }
 
  
@@ -376,14 +376,14 @@ function jp_match_team_member(?string $slug, ?string $name, ?string $dob): ?arra
     if ($team === []) {
         return null;
     }
-    $slug = strtolower(trim((string)$slug));
+    $slug = (((string)$slug) |> trim(...) |> strtolower(...));
     $name = mb_strtolower(trim((string)$name), 'UTF-8');
     $dobN = jp_normalize_dob((string)$dob);
      
     if ($slug !== '') {
         foreach ($team as $m) {
             if (!is_array($m)) continue;
-            $s = strtolower(trim((string)($m['slug'] ?? $m['id'] ?? '')));
+            $s = (((string)($m['slug'] ?? $m['id'] ?? '')) |> trim(...) |> strtolower(...));
             if ($s !== '' && $s === $slug) {
                 return $m;
             }
@@ -418,7 +418,7 @@ function jp_match_team_member(?string $slug, ?string $name, ?string $dob): ?arra
 }
 
 function jp_profile_from_team(array $m): array {
-    $gender = strtolower(trim((string)($m['gender'] ?? 'male')));
+    $gender = (((string)($m['gender'] ?? 'male')) |> trim(...) |> strtolower(...));
     if (!in_array($gender, ['male', 'female'], true)) {
         $gender = 'male';
     }
@@ -1136,9 +1136,9 @@ function jp_render_varga_switcher(array $chart, array $p, string $pid): void {
 }
 
 function jp_build_chart(array $p): array {
-    [$yh, $mh, $dh] = array_map('intval', explode('-', (string)$p['dob']));
+    [$yh, $mh, $dh] = array_map(intval(...), explode('-', (string)$p['dob']));
     $tob = (string)($p['tob'] ?? '12:00');
-    [$hh, $mm] = array_map('intval', array_pad(explode(':', $tob), 2, 0));
+    [$hh, $mm] = array_map(intval(...), array_pad(explode(':', $tob), 2, 0));
     $lat = (float)($p['lat'] ?? 28.6139);
     $lng = (float)($p['lng'] ?? 77.2090);
      
@@ -2250,7 +2250,7 @@ function jp_ephemeral_profile(): ?array {
     $qPob = trim((string)($_GET['pob'] ?? $_GET['place'] ?? ''));
     $qGotra = trim((string)($_GET['gotra'] ?? ''));
     $qSlug = trim((string)($_GET['slug'] ?? $_GET['team_slug'] ?? ''));
-    $qGender = strtolower(trim((string)($_GET['gender'] ?? '')));
+    $qGender = (((string)($_GET['gender'] ?? '')) |> trim(...) |> strtolower(...));
     $qLat = trim((string)($_GET['lat'] ?? ''));
     $qLng = trim((string)($_GET['lng'] ?? ''));
 
@@ -2532,7 +2532,7 @@ function jp_footer(): void {
 
 function jp_save_profile(array $in): array {
     $name = trim((string)($in['name'] ?? ''));
-    $gender = strtolower(trim((string)($in['gender'] ?? '')));
+    $gender = (((string)($in['gender'] ?? '')) |> trim(...) |> strtolower(...));
     $dob = trim((string)($in['dob'] ?? ''));
     $tob = trim((string)($in['tob'] ?? '12:00'));
     $place = trim((string)($in['place'] ?? ''));
@@ -2671,7 +2671,7 @@ if ($action === 'api_import_team' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POS
             $errors[] = ($m['name'] ?? $key) . ' — missing Place of Birth';
             continue;
         }
-        $gender = strtolower(trim((string)($m['gender'] ?? 'male')));
+        $gender = (((string)($m['gender'] ?? 'male')) |> trim(...) |> strtolower(...));
         if (!in_array($gender, ['male', 'female'], true)) {
             $gender = 'male';
         }
@@ -2734,7 +2734,7 @@ if ($action === 'api_delete_profiles' && ($_SERVER['REQUEST_METHOD'] ?? '') === 
     if (!is_array($ids)) {
         $ids = [];
     }
-    $ids = array_values(array_filter(array_map('strval', $ids), static fn($id) => $id !== ''));
+    $ids = array_values(array_filter(array_map(strval(...), $ids), static fn($id) => $id !== ''));
     if ($ids === []) {
         echo json_encode(['status' => 'error', 'message' => 'No profiles selected.'], JSON_UNESCAPED_UNICODE);
         exit;
@@ -2794,7 +2794,7 @@ if ($view === 'new' || $view === 'edit') {
     $qPob = trim((string)($_GET['pob'] ?? $_GET['place'] ?? ''));
     $qGotra = trim((string)($_GET['gotra'] ?? ''));
     $qSlug = trim((string)($_GET['slug'] ?? $_GET['team_slug'] ?? ''));
-    $qGender = strtolower(trim((string)($_GET['gender'] ?? '')));
+    $qGender = (((string)($_GET['gender'] ?? '')) |> trim(...) |> strtolower(...));
      
     if ($edit === null && $qSlug !== '') {
         foreach ($profiles as $_p) {
@@ -3250,7 +3250,7 @@ if ($view === 'patri') {
         'index' => true,
         'type' => 'profile',
     ]);
-    $patriTab = strtolower(trim((string)($_GET['tab'] ?? 'kundli')));
+    $patriTab = (((string)($_GET['tab'] ?? 'kundli')) |> trim(...) |> strtolower(...));
     if (!in_array($patriTab, ['kundli', 'dasha', 'sade', 'gochar', 'varga', 'strength', 'doshas'], true)) {
         $patriTab = 'kundli';
     }

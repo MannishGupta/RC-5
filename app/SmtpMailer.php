@@ -15,7 +15,7 @@ final class SmtpMailer {
     public function __construct(array $config) {
         $this->host      = trim((string)($config['host'] ?? ''));
         $this->port      = (int)($config['port'] ?? 587);
-        $this->enc       = strtolower(trim((string)($config['encryption'] ?? 'tls')));
+        $this->enc       = (((string)($config['encryption'] ?? 'tls')) |> trim(...) |> strtolower(...));
         $this->user      = trim((string)($config['username'] ?? ''));
         $this->pass      = (string)($config['password'] ?? '');
         $this->fromEmail = trim((string)($config['from_email'] ?? $this->user));

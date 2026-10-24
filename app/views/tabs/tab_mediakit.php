@@ -39,9 +39,9 @@ if (class_exists('AppDB')) {
             if (isset($seenId[$id])) {
                 continue;
             }
-            $fp = strtolower(trim((string)($row['name'] ?? $row['title'] ?? '')))
-                . '|' . strtolower(trim((string)($row['file'] ?? $row['photo'] ?? '')))
-                . '|' . strtolower(trim((string)($row['caption'] ?? '')));
+            $fp = (((string)($row['name'] ?? $row['title'] ?? '')) |> trim(...) |> strtolower(...))
+                . '|' . (((string)($row['file'] ?? $row['photo'] ?? '')) |> trim(...) |> strtolower(...))
+                . '|' . (((string)($row['caption'] ?? '')) |> trim(...) |> strtolower(...));
             if ($fp !== '||' && isset($seenFp[$fp])) {
                 continue;
             }
@@ -861,7 +861,7 @@ if (!empty($coSocial) && is_array($coSocial)) {
 <?php foreach ($kit as $item):
     if (!is_array($item)) continue;
     $name = trim((string)($item['name'] ?? $item['title'] ?? 'Untitled'));
-    $cat = strtolower(trim((string)($item['category'] ?? 'other')));
+    $cat = (((string)($item['category'] ?? 'other')) |> trim(...) |> strtolower(...));
     $href = rc_mk_asset_href($item);
     $ext = rc_mk_ext($item);
     $icon = rc_mk_icon($ext);

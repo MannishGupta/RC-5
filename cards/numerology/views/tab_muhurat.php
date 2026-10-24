@@ -2,7 +2,7 @@
  if (!defined('BASE_PATH') || !isset($report, $lang, $p, $core)) exit; ?>
     <div x-show="activeTab==='muhurat'" class="tab-section space-y-6 print-page-break">
         <?php
-        $_muHas=!empty($muhuratData)&&array_sum(array_map('count',$muhuratData))>0;
+        $_muHas=!empty($muhuratData)&&array_sum(array_map(count(...),$muhuratData))>0;
         $_mLbl=['business_start'=>[$lang==='hi'?'व्यवसाय प्रारंभ':'Business Launch','fa-briefcase','indigo'],'name_correction'=>[$lang==='hi'?'नाम परिवर्तन':'Name Correction','fa-pen-nib','violet'],'property'=>[$lang==='hi'?'संपत्ति खरीद':'Property Purchase','fa-house','emerald'],'travel'=>[$lang==='hi'?'यात्रा / उद्यम':'Travel / Venture','fa-plane','blue'],'marriage'=>[$lang==='hi'?'विवाह / साझेदारी':'Marriage / Partnership','fa-heart','rose']];
         ?>
         <div class="flex items-center gap-4 p-5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">

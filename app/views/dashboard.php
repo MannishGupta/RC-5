@@ -50,17 +50,17 @@ class DashboardEngine {
 
         if (!empty($data['locations'])) {
             foreach ($data['locations'] as $l) {
-                if (!empty($l['id'])) $data['locationsById'][strtolower(trim((string)$l['id']))] = $l;
-                if (!empty($l['slug'])) $data['locationsById'][strtolower(trim((string)$l['slug']))] = $l;
-                if (!empty($l['name'])) $data['locationsById'][strtolower(trim((string)$l['name']))] = $l;
+                if (!empty($l['id'])) $data['locationsById'][(((string)$l['id']) |> trim(...) |> strtolower(...))] = $l;
+                if (!empty($l['slug'])) $data['locationsById'][(((string)$l['slug']) |> trim(...) |> strtolower(...))] = $l;
+                if (!empty($l['name'])) $data['locationsById'][(((string)$l['name']) |> trim(...) |> strtolower(...))] = $l;
             }
         }
         if (!empty($data['departments'])) {
             foreach ($data['departments'] as $d) {
-                if (!empty($d['id'])) $data['departmentsById'][strtolower(trim((string)$d['id']))] = $d;
-                if (!empty($d['code'])) $data['departmentsById'][strtolower(trim((string)$d['code']))] = $d;
-                if (!empty($d['slug'])) $data['departmentsById'][strtolower(trim((string)$d['slug']))] = $d;
-                if (!empty($d['name'])) $data['departmentsById'][strtolower(trim((string)$d['name']))] = $d;
+                if (!empty($d['id'])) $data['departmentsById'][(((string)$d['id']) |> trim(...) |> strtolower(...))] = $d;
+                if (!empty($d['code'])) $data['departmentsById'][(((string)$d['code']) |> trim(...) |> strtolower(...))] = $d;
+                if (!empty($d['slug'])) $data['departmentsById'][(((string)$d['slug']) |> trim(...) |> strtolower(...))] = $d;
+                if (!empty($d['name'])) $data['departmentsById'][(((string)$d['name']) |> trim(...) |> strtolower(...))] = $d;
             }
         }
          
@@ -75,8 +75,8 @@ class DashboardEngine {
             $ra = is_numeric($a['rank'] ?? null) ? (int)$a['rank'] : PHP_INT_MAX;
             $rb = is_numeric($b['rank'] ?? null) ? (int)$b['rank'] : PHP_INT_MAX;
             if ($ra !== $rb) return $ra <=> $rb;
-            $ca = strtolower(trim((string)($a['code'] ?? '')));
-            $cb = strtolower(trim((string)($b['code'] ?? '')));
+            $ca = (((string)($a['code'] ?? '')) |> trim(...) |> strtolower(...));
+            $cb = (((string)($b['code'] ?? '')) |> trim(...) |> strtolower(...));
             if ($ca !== $cb) return $ca <=> $cb;
             return strcasecmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
         });
@@ -107,7 +107,7 @@ class DashboardEngine {
 
             $canon = (string)($d['id'] ?? $d['code'] ?? $d['slug'] ?? '');
             foreach (['id', 'code', 'slug', 'name'] as $fld) {
-                $k = strtolower(trim((string)($d[$fld] ?? '')));
+                $k = (((string)($d[$fld] ?? '')) |> trim(...) |> strtolower(...));
                 if ($k === '') continue;
                 $hierarchyByKey[$k] = $hier;
                 $canonicalByKey[$k] = $canon;
@@ -145,8 +145,8 @@ class DashboardEngine {
                 if (!$desigRow && $desigKey !== '') {
                     foreach ($data['designationsById'] as $dk => $dv) {
                         if ($dk === $desigKey) { $desigRow = $dv; break; }
-                        if (strtolower(trim((string)($dv['name'] ?? ''))) === $desigKey) { $desigRow = $dv; break; }
-                        if (strtolower(trim((string)($dv['code'] ?? ''))) === $desigKey) { $desigRow = $dv; break; }
+                        if ((((string)($dv['name'] ?? '')) |> trim(...) |> strtolower(...)) === $desigKey) { $desigRow = $dv; break; }
+                        if ((((string)($dv['code'] ?? '')) |> trim(...) |> strtolower(...)) === $desigKey) { $desigRow = $dv; break; }
                     }
                 }
 
@@ -189,7 +189,7 @@ class DashboardEngine {
                 $dept = ($deptId !== '' && isset($data['departmentsById'][$deptId])) ? $data['departmentsById'][$deptId] : null;
                 if (!$dept && $deptId !== '') {
                     foreach ($data['departmentsById'] as $dk => $dv) {
-                        if (strtolower(trim((string)($dv['name'] ?? ''))) === $deptId || strtolower(trim((string)($dv['code'] ?? ''))) === $deptId) {
+                        if ((((string)($dv['name'] ?? '')) |> trim(...) |> strtolower(...)) === $deptId || (((string)($dv['code'] ?? '')) |> trim(...) |> strtolower(...)) === $deptId) {
                             $dept = $dv;
                             break;
                         }
@@ -203,7 +203,7 @@ class DashboardEngine {
                     $member['department_name'] = $rcHumanOrPending($deptRaw, 'Department Pending');
                 }
 
-                $locId = strtolower(trim((string)($member['location_id'] ?? $member['location'] ?? '')));
+                $locId = (((string)($member['location_id'] ?? $member['location'] ?? '')) |> trim(...) |> strtolower(...));
                 $locName = $data['locationsById'][$locId]['name'] ?? '';
                 $locRow = $data['locationsById'][$locId] ?? null;
                 if (!$locRow && $locId) {
@@ -259,7 +259,7 @@ class DashboardEngine {
                     if ($nextBday < $now) $nextBday->modify('+1 year');
                     $nextBday->setTime(10, 0);
 
-                    $locId = strtolower(trim((string)($member['location_id'] ?? '')));
+                    $locId = (((string)($member['location_id'] ?? '')) |> trim(...) |> strtolower(...));
                     $locName = (!empty($locId) && isset($locMap[$locId])) ? ($locMap[$locId]['name'] ?? 'Unknown') : 'Not Assigned';
 
                     $events[] = [
@@ -384,8 +384,8 @@ $titles = [
     'departments' => 'Organizational Units',
     'numero' => 'Numerological Intelligence Report',
     'janam' => 'Janam Patri',
-    'opt' => 'Platform Optimization Suite',
-    'monitor' => 'Infrastructure Telemetry & Diagnostics',
+    'opt' => 'Maintenance suite (use Health & Tools)',
+    'monitor' => 'Live Monitor',
     'cartags' => 'Fleet Asset Registry',
     'cctv' => 'Surveillance Access Control',
     'status' => 'Const. Status',
@@ -421,7 +421,7 @@ if (!is_file($_stProjects)) {
 if (is_file($_stProjects)) {
     $_pj = json_decode((string)@file_get_contents($_stProjects), true);
     if (is_array($_pj)) {
-        $statusProjectCount = count(array_filter($_pj, 'is_array'));
+        $statusProjectCount = count(array_filter($_pj, is_array(...)));
     }
 }
 
@@ -934,30 +934,41 @@ button.rc-sidebar-logout span {
 }
 .rc-sidebar-logout .link-text { display: none !important; }
 
-/* Theme + logout — match sidebar surface (no fixed navy plate) */
-.rc-theme-seg{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:3px;
+/* Left footer: 3 themes + logout as 4 equal icons in one row */
+.rc-sidebar-foot{
+  border-color:var(--rc-side-border, var(--rc-border)) !important;
+  background:transparent !important;
+  display:grid !important;
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:4px !important;
+  align-items:center !important;
+  padding:8px !important;
 }
-.rc-theme-seg__btn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  font-size:12px;
-  font-weight:600;
-  padding:0;
-  min-height:28px;
-  height:28px;
-  width:100%;
-  border-radius:8px;
-  border:1px solid var(--rc-side-border, var(--rc-border, #e2e8f0));
-  background:transparent;
-  color:var(--rc-side-ink, var(--rc-ink));
+.rc-sidebar-foot .rc-theme-seg{
+  display:contents; /* children participate in parent 4-col grid */
+}
+.rc-theme-seg__btn,
+.rc-sidebar-logout{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:100% !important;
+  min-width:0 !important;
+  height:32px !important;
+  min-height:32px !important;
+  padding:0 !important;
+  border-radius:8px !important;
+  border:1px solid var(--rc-side-border, var(--rc-border, #e2e8f0)) !important;
+  background:transparent !important;
+  color:var(--rc-side-ink, var(--rc-ink)) !important;
   cursor:pointer;
   line-height:1;
+  font-size:12px;
+  font-weight:600;
+  text-decoration:none !important;
 }
-.rc-theme-seg__btn i{ font-size:11px; pointer-events:none; }
+.rc-theme-seg__btn i,
+.rc-sidebar-logout i{ font-size:12px; pointer-events:none; }
 .rc-theme-seg__btn:hover{
   background:var(--rc-side-active-bg, #eff6fc) !important;
   color:var(--rc-side-active-ink, var(--rc-accent, #005a9e)) !important;
@@ -968,29 +979,37 @@ button.rc-sidebar-logout span {
   color:var(--rc-side-active-ink, var(--rc-accent, #005a9e)) !important;
   border-color:var(--rc-accent, #0078d4) !important;
 }
-.rc-sidebar-logout{
-  background:transparent !important;
-  color:var(--rc-side-ink, var(--rc-ink)) !important;
-  border:1px solid var(--rc-side-border, var(--rc-border, #e2e8f0)) !important;
-  width:28px !important;
-  height:28px !important;
-  min-width:28px !important;
-  padding:0 !important;
-  border-radius:8px !important;
-}
-.rc-sidebar-logout i{ font-size:11px; }
 .rc-sidebar-logout:hover{
   background:color-mix(in srgb, #ef4444 12%, transparent) !important;
   border-color:#f87171 !important;
   color:#b91c1c !important;
 }
-.rc-sidebar-foot{
-  border-color:var(--rc-side-border, var(--rc-border)) !important;
-  background:transparent !important;
+aside.collapsed .rc-sidebar-foot{
+  grid-template-columns:1fr !important;
 }
-aside.collapsed .rc-sidebar-foot{ flex-direction:column !important; }
-aside.collapsed .rc-theme-seg{ grid-template-columns:1fr; }
-aside.collapsed .rc-theme-seg__btn{ min-height:26px; height:26px; }
+aside.collapsed .rc-theme-seg__btn,
+aside.collapsed .rc-sidebar-logout{ height:28px !important; min-height:28px !important; }
+
+/* Right pane footer: same height as header (h-16 = 4rem) */
+#rc-main-content > footer.no-print,
+main#rc-main-content > footer{
+  height:4rem !important;
+  min-height:4rem !important;
+  max-height:4rem !important;
+  padding:0 1rem !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  box-sizing:border-box;
+}
+#rc-main-content > footer.no-print .rc-site-footer{
+  width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  gap:0.75rem 1.25rem;
+}
 
 /* Single chrome title: hide legacy in-pane page titles */
 #rc-content > .rc-dup-page-title,
@@ -1155,20 +1174,46 @@ button.bg-white,a.bg-white{color:#0f172a!important}
         </nav>
         
         <!-- Footer: theme + logout single row (icon-only) -->
-        <div class="rc-sidebar-foot border-t px-2 py-2 shrink-0 mt-auto" id="rc-sidebar-foot" style="display:flex;flex-direction:row;align-items:center;gap:6px;flex-shrink:0;margin-top:auto">
-            <div class="rc-theme-seg flex-1 min-w-0" role="group" aria-label="Colour theme">
+        <div class="rc-sidebar-foot border-t shrink-0 mt-auto" id="rc-sidebar-foot" role="group" aria-label="Theme and sign out">
+            <div class="rc-theme-seg" role="presentation">
                 <button type="button" data-rc-theme-opt="light" class="rc-theme-seg__btn" onclick="window.rcSetTheme&&window.rcSetTheme('light')" title="Light" aria-label="Light theme"><i class="fa-solid fa-sun" aria-hidden="true"></i></button>
                 <button type="button" data-rc-theme-opt="dark" class="rc-theme-seg__btn" onclick="window.rcSetTheme&&window.rcSetTheme('dark')" title="Dark" aria-label="Dark theme"><i class="fa-solid fa-moon" aria-hidden="true"></i></button>
                 <button type="button" data-rc-theme-opt="reserve" class="rc-theme-seg__btn" onclick="window.rcSetTheme&&window.rcSetTheme('reserve')" title="Reserve" aria-label="Reserve theme"><i class="fa-solid fa-leaf" aria-hidden="true"></i></button>
-                <button type="button" data-rc-theme-opt="system" class="rc-theme-seg__btn" onclick="window.rcSetTheme&&window.rcSetTheme('system')" title="System" aria-label="System theme"><i class="fa-solid fa-display" aria-hidden="true"></i></button>
             </div>
-            <script>(function(){try{var p=localStorage.getItem('rc-theme')||'reserve';document.querySelectorAll('[data-rc-theme-opt]').forEach(function(b){var on=b.getAttribute('data-rc-theme-opt')===p;b.setAttribute('aria-pressed',on?'true':'false');b.classList.toggle('is-active',on);});window.rcSetTheme=window.rcSetTheme||function(mode){try{localStorage.setItem('rc-theme',mode);var html=document.documentElement;if(mode==='system'){var dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;html.setAttribute('data-theme',dark?'dark':'light');html.classList.toggle('dark',dark);}else{html.setAttribute('data-theme',mode);html.classList.toggle('dark',mode==='dark');}document.querySelectorAll('[data-rc-theme-opt]').forEach(function(b){var on=b.getAttribute('data-rc-theme-opt')===mode;b.setAttribute('aria-pressed',on?'true':'false');b.classList.toggle('is-active',on);});}catch(e){}};}catch(e){}})();</script>
             <button type="button" @click="logout()"
-                    class="rc-sidebar-logout shrink-0 flex items-center justify-center rounded-lg transition-colors no-underline"
+                    class="rc-sidebar-logout"
                     title="Sign out" aria-label="Sign out">
                 <i class="fa-solid fa-power-off" aria-hidden="true"></i>
             </button>
+            <script>
+            (function(){
+              try{
+                var p=localStorage.getItem('rc-theme')||'reserve';
+                if(p==='system'){ p='reserve'; try{localStorage.setItem('rc-theme',p);}catch(e){} }
+                document.querySelectorAll('[data-rc-theme-opt]').forEach(function(b){
+                  var on=b.getAttribute('data-rc-theme-opt')===p;
+                  b.setAttribute('aria-pressed',on?'true':'false');
+                  b.classList.toggle('is-active',on);
+                });
+                window.rcSetTheme=window.rcSetTheme||function(mode){
+                  try{
+                    if(mode==='system') mode='reserve';
+                    localStorage.setItem('rc-theme',mode);
+                    var html=document.documentElement;
+                    html.setAttribute('data-theme',mode);
+                    html.classList.toggle('dark',mode==='dark');
+                    document.querySelectorAll('[data-rc-theme-opt]').forEach(function(b){
+                      var on=b.getAttribute('data-rc-theme-opt')===mode;
+                      b.setAttribute('aria-pressed',on?'true':'false');
+                      b.classList.toggle('is-active',on);
+                    });
+                  }catch(e){}
+                };
+              }catch(e){}
+            })();
+            </script>
         </div>
+</div>
     </aside>
 
     <!-- ═══════════════════════════════════════════════════════════
@@ -1423,21 +1468,8 @@ button.bg-white,a.bg-white{color:#0f172a!important}
                      
 
                      
-                    // Widgets on Team / Events only. Today owns its own strip in tab_today.php
-                    // (including both caused a double widget row on ?tab=today).
-                    if (empty($isSuperAdmin) && empty($viewData['isSuperAdmin'])
-                        && in_array($currentTab, ['team', 'events'], true)) {
-                        echo '<div class="rc-top-widgets mb-3 grid grid-cols-4 gap-2 items-stretch" style="grid-template-columns:repeat(4,minmax(0,1fr))" role="region" aria-label="Live local widgets">';
-                        $wxPartial = __DIR__ . '/partials/public_live_widgets.php';
-                        if (is_file($wxPartial)) {
-                            require $wxPartial;
-                        }
-                        $bdayPartial = __DIR__ . '/partials/value_birthday_strip.php';
-                        if (is_file($bdayPartial)) {
-                            require $bdayPartial;
-                        }
-                        echo '</div>';
-                    }
+                    // Live widgets: full strip only on Today (tab_today.php). Events/Choghadiya add their own partials.
+                    
                     ?>
 
             <div class="w-full max-w-full block">
@@ -1615,7 +1647,7 @@ button.bg-white,a.bg-white{color:#0f172a!important}
           $licUrl  = trim((string)($viewData['company']['website'] ?? ''));
           if ($licUrl !== '' && !preg_match('~^https?://~i', $licUrl)) $licUrl = 'https://'.$licUrl;
         ?>
-        <footer class="no-print shrink-0 border-t border-slate-200/80 px-3 py-2.5 text-[11px] text-slate-500" role="contentinfo">
+        <footer class="no-print shrink-0 border-t border-slate-200/80 text-[11px] text-slate-500 h-16 flex items-center justify-center" role="contentinfo">
           <nav class="rc-site-footer flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-center" aria-label="Site">
             <button type="button" @click="showChangelog = true" class="tabular-nums no-underline hover:text-[color:var(--rc-accent)] cursor-pointer bg-transparent border-0 p-0 text-[11px] text-slate-500" title="Changelog">RC Version No. <?= htmlspecialchars(defined('APP_VERSION') ? (string)APP_VERSION : '', ENT_QUOTES,'UTF-8') ?></button>
             <span class="opacity-40" aria-hidden="true">·</span>

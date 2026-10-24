@@ -18,7 +18,7 @@ final class InstallerBuild
         }
         $exact = is_array($map['exact'] ?? null) ? $map['exact'] : [];
         foreach ($exact as $host => $tid) {
-            $host = strtolower(trim((string)$host));
+            $host = (((string)$host) |> trim(...) |> strtolower(...));
             $tid = preg_replace('/[^a-z0-9.\-]/i', '', (string)$tid) ?? '';
             if ($host === '' || $tid === '' || isset($seen[$tid])) {
                 continue;
@@ -37,7 +37,7 @@ final class InstallerBuild
                 continue;
             }
             $seen[$tid] = true;
-            $out[] = ['id' => $tid, 'host' => strtolower(trim((string)$host))];
+            $out[] = ['id' => $tid, 'host' => (((string)$host) |> trim(...) |> strtolower(...))];
         }
         return $out;
     }
@@ -55,8 +55,9 @@ final class InstallerBuild
                 if (isset($j['name'])) {
                     return $j;
                 }
-                if (isset($j[0]) && is_array($j[0])) {
-                    return $j[0];
+                $first = array_first($j);
+                if (is_array($first)) {
+                    return $first;
                 }
             }
         }

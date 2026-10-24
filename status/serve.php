@@ -70,7 +70,7 @@ $base = status_norm_path(str_replace('\\', '/', $base));
 
 $tenantId = defined('TENANT_ID') ? (string)TENANT_ID : '';
 if ($tenantId === '') {
-    $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '')));
+    $host = (((string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '')) |> trim(...) |> strtolower(...));
     if (str_contains($host, ':')) {
         $host = explode(':', $host, 2)[0];
     }

@@ -44,7 +44,7 @@ if (function_exists('opcache_get_status')) {
 $working = $ext && ($scripts > 0 || $hits > 0 || $enabledFlag);
 $ratio = ($hits + $misses) > 0 ? round(100 * $hits / ($hits + $misses), 1) : 0;
 
-$wantJson = isset($_GET['json']) || (strpos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false);
+$wantJson = isset($_GET['json']) || (str_contains((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json'));
 if ($wantJson) {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');

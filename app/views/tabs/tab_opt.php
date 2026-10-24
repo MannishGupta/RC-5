@@ -1,12 +1,23 @@
 <?php
- 
-if (!defined('BASE_PATH')) exit;
-if (empty($isSuperAdmin)) {
-    echo '<div class="p-8 text-center text-red-600 font-bold bg-red-50 rounded-xl m-4 border border-red-200"><i class="fa-solid fa-ban mr-2"></i>Access Denied — Super Admin only.</div>';
-    return;
+/**
+ * Legacy Optimisation Suite tab — folded into Health & Tools.
+ * Old bookmarks (?tab=opt) still render the panel with a clear move notice.
+ */
+if (!defined('BASE_PATH')) {
+    exit;
 }
-$optPanelCompact = false;
 ?>
-<div class="max-w-4xl mx-auto w-full pb-12 mt-4 md:mt-8">
-    <?php require __DIR__ . '/../partials/optimizer_panel.php'; ?>
+<div class="space-y-3">
+  <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+    <strong>Moved:</strong> Platform optimisation now lives under
+    <a class="font-bold underline" href="?tab=health#rc-maintain">Health &amp; tools → Maintenance suite</a>.
+    One place for optimiser, cache flush, junk cleanup, and backups.
+  </div>
+  <?php
+    $optPanelCompact = false;
+    $optPartial = __DIR__ . '/../partials/optimizer_panel.php';
+    if (is_file($optPartial)) {
+        require $optPartial;
+    }
+  ?>
 </div>

@@ -7,13 +7,13 @@ if (!defined('BASE_PATH') || !class_exists('AppNumeroEngine')) exit;
 
  
  
-$_langQ = strtolower(trim((string)($_GET['lang'] ?? '')));
+$_langQ = (((string)($_GET['lang'] ?? '')) |> trim(...) |> strtolower(...));
 if (in_array($_langQ, ['en', 'en_in', 'english'], true)) {
     $lang = 'en';
 } elseif (in_array($_langQ, ['hi', 'hi_in', 'hindi'], true)) {
     $lang = 'hi';
 } else {
-    $_langC = strtolower(trim((string)($_COOKIE['rc_lang'] ?? $_COOKIE['nr_lang'] ?? '')));
+    $_langC = (((string)($_COOKIE['rc_lang'] ?? $_COOKIE['nr_lang'] ?? '')) |> trim(...) |> strtolower(...));
     $lang = ($_langC === 'en') ? 'en' : 'hi';
 }
 if (!headers_sent()) {
@@ -61,7 +61,7 @@ if (!empty($shareDecoded) && !empty($shareDecoded['n']) && !empty($shareDecoded[
         'phone'  => isset($_GET['mobile']) ? preg_replace('/\D/', '', $_GET['mobile']) : '',
         'gender' => isset($_GET['gender']) ? preg_replace('/[^a-zA-Z]/', '', $_GET['gender']) : 'Unknown',
          
-        'photo'  => (preg_match('/^[a-zA-Z0-9_\-\.]+\.(jpg|jpeg|png|webp|avif)$/i', basename($_GET['photo'] ?? '')) && strpos($_GET['photo'] ?? '', '//') === false) ? basename($_GET['photo']) : ''
+        'photo'  => (preg_match('/^[a-zA-Z0-9_\-\.]+\.(jpg|jpeg|png|webp|avif)$/i', basename($_GET['photo'] ?? '')) && !str_contains($_GET['photo'] ?? '', '//')) ? basename($_GET['photo']) : ''
     ];
 } elseif (!empty($slug)) {
     if (class_exists('AppDB')) {

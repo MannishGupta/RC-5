@@ -247,7 +247,7 @@ function rtRateLimitAllow(string $bucket, int $maxPerMin): bool
             $data[$bucket] = [];
         }
         $hits = array_values(array_filter(
-            array_map('intval', $data[$bucket]),
+            array_map(intval(...), $data[$bucket]),
             static fn(int $t) => ($now - $t) < 60
         ));
         if (count($hits) >= $maxPerMin) {
@@ -263,7 +263,7 @@ function rtRateLimitAllow(string $bucket, int $maxPerMin): bool
                     continue;
                 }
                 $kept = array_values(array_filter(
-                    array_map('intval', $arr),
+                    array_map(intval(...), $arr),
                     static fn(int $t) => ($now - $t) < 60
                 ));
                 if ($kept === []) {
@@ -355,10 +355,10 @@ function loadPolicy(): array
         $d['working_hours'] = array_merge($d['working_hours'], $raw['working_hours']);
     }
     if (isset($raw['mandatory_designations']) && is_array($raw['mandatory_designations'])) {
-        $d['mandatory_designations'] = array_values(array_map('strval', $raw['mandatory_designations']));
+        $d['mandatory_designations'] = array_values(array_map(strval(...), $raw['mandatory_designations']));
     }
     if (isset($raw['mandatory_departments']) && is_array($raw['mandatory_departments'])) {
-        $d['mandatory_departments'] = array_values(array_map('strval', $raw['mandatory_departments']));
+        $d['mandatory_departments'] = array_values(array_map(strval(...), $raw['mandatory_departments']));
     }
     if (isset($raw['heartbeat_timeout_minutes'])) {
         $d['heartbeat_timeout_minutes'] = max(1, (int)$raw['heartbeat_timeout_minutes']);
@@ -424,7 +424,7 @@ function isMandatoryEmployee(array $emp, array $policy): bool
      
     $desigKeys = [];
     foreach (['designation_id', 'designation_code', 'designation', 'designation_name', 'labels'] as $fld) {
-        $v = strtolower(trim((string)($emp[$fld] ?? '')));
+        $v = (((string)($emp[$fld] ?? '')) |> trim(...) |> strtolower(...));
         if ($v !== '') {
             $desigKeys[$v] = true;
         }
@@ -442,7 +442,7 @@ function isMandatoryEmployee(array $emp, array $policy): bool
                 }
                 $keys = [];
                 foreach (['id', 'code', 'slug', 'name'] as $fld) {
-                    $k = strtolower(trim((string)($d[$fld] ?? '')));
+                    $k = (((string)($d[$fld] ?? '')) |> trim(...) |> strtolower(...));
                     if ($k !== '') {
                         $keys[$k] = true;
                     }
@@ -467,16 +467,16 @@ function isMandatoryEmployee(array $emp, array $policy): bool
     }
 
      
-    $desig = strtolower(trim((string)($emp['designation'] ?? $emp['designation_name'] ?? '')));
-    $dept = strtolower(trim((string)($emp['department'] ?? $emp['department_name'] ?? '')));
+    $desig = (((string)($emp['designation'] ?? $emp['designation_name'] ?? '')) |> trim(...) |> strtolower(...));
+    $dept = (((string)($emp['department'] ?? $emp['department_name'] ?? '')) |> trim(...) |> strtolower(...));
     foreach ($policy['mandatory_designations'] as $d) {
-        if ($desig !== '' && $desig === strtolower(trim((string)$d))) {
+        if ($desig !== '' && $desig === (((string)$d) |> trim(...) |> strtolower(...))) {
             return true;
         }
     }
      
     foreach ($policy['mandatory_departments'] as $d) {
-        if ($dept !== '' && $dept === strtolower(trim((string)$d))) {
+        if ($dept !== '' && $dept === (((string)$d) |> trim(...) |> strtolower(...))) {
             return true;
         }
     }
@@ -569,7 +569,7 @@ function loadState(): array
         }
         return $seeded;
     }
-    $list = array_values(array_filter($rows, 'is_array'));
+    $list = array_values(array_filter($rows, is_array(...)));
     usort($list, 'rtSortByRank');
     return $list;
 }
@@ -588,7 +588,7 @@ function nextIncidentId(array $violations, array $policy): string
     $max = 0;
     foreach ($violations as $v) {
         $id = (string)($v['incident_id'] ?? '');
-        if (strpos($id, $prefix) === 0) {
+        if (str_starts_with($id, $prefix)) {
             $n = (int)substr($id, strlen($prefix));
             if ($n > $max) {
                 $max = $n;
@@ -603,7 +603,7 @@ function openViolation(array $emp, string $type, array $policy, ?string $address
     $eid = (string)($emp['id'] ?? '');
     $result = updateJsonFile(pathViolations(), static function (array &$violations) use ($emp, $type, $policy, $address, $eid): array {
         if ($violations !== [] && !isset($violations[0])) {
-            $violations = array_values(array_filter($violations, 'is_array'));
+            $violations = array_values(array_filter($violations, is_array(...)));
         }
         foreach ($violations as $v) {
             if ((string)($v['employee_id'] ?? '') === $eid && ($v['status'] ?? '') === 'OPEN') {
@@ -635,7 +635,7 @@ function resolveOpenViolations(array &$violations, string $employeeId, array $po
 {
     $resolved = updateJsonFile(pathViolations(), static function (array &$rows) use ($employeeId, $policy, &$violations): array {
         if ($rows !== [] && !isset($rows[0])) {
-            $rows = array_values(array_filter($rows, 'is_array'));
+            $rows = array_values(array_filter($rows, is_array(...)));
         }
         $resolved = [];
         $now = rtNow($policy);
@@ -812,10 +812,10 @@ function actionSavePolicy(array $body): void
         $p['working_hours'] = array_merge($p['working_hours'], $body['working_hours']);
     }
     if (isset($body['mandatory_designations']) && is_array($body['mandatory_designations'])) {
-        $p['mandatory_designations'] = array_values(array_filter(array_map('strval', $body['mandatory_designations'])));
+        $p['mandatory_designations'] = array_values(array_filter(array_map(strval(...), $body['mandatory_designations'])));
     }
     if (isset($body['mandatory_departments']) && is_array($body['mandatory_departments'])) {
-        $p['mandatory_departments'] = array_values(array_filter(array_map('strval', $body['mandatory_departments'])));
+        $p['mandatory_departments'] = array_values(array_filter(array_map(strval(...), $body['mandatory_departments'])));
     }
     if (isset($body['heartbeat_timeout_minutes'])) {
         $p['heartbeat_timeout_minutes'] = max(1, (int)$body['heartbeat_timeout_minutes']);
@@ -916,7 +916,7 @@ function actionUpdateLocation(array $body): void
         $runnerId, $lat, $lng, $speed, $battery, $address, $now, $body, $policy
     ): array {
         if ($state !== [] && !isset($state[0])) {
-            $state = array_values(array_filter($state, 'is_array'));
+            $state = array_values(array_filter($state, is_array(...)));
         }
         $found = false;
         $empOut = [];
@@ -1020,7 +1020,7 @@ function actionReportTurnOff(array $body): void
     }
     $emp = updateJsonFile(pathState(), static function (array &$state) use ($runnerId, $body, $policy): array {
         if ($state !== [] && !isset($state[0])) {
-            $state = array_values(array_filter($state, 'is_array'));
+            $state = array_values(array_filter($state, is_array(...)));
         }
         $empOut = null;
         foreach ($state as &$r) {
@@ -1275,7 +1275,7 @@ if (!is_file(pathState())) {
     writeJsonFile(pathState(), seedFromTeam());
 }
 
-$action = strtolower(trim((string)($_GET['action'] ?? $_POST['action'] ?? 'ui')));
+$action = (((string)($_GET['action'] ?? $_POST['action'] ?? 'ui')) |> trim(...) |> strtolower(...));
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $body = requestBody();
 

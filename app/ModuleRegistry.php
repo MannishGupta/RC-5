@@ -205,8 +205,8 @@ final class ModuleRegistry
                 ],
             ],
             'health' => [
-                'label' => 'System health',
-                'group' => 'Administration',
+                'label' => 'Health & Tools',
+                'group' => 'Platform operations',
                 'features' => [],
             ],
             'audit' => [
@@ -238,13 +238,13 @@ final class ModuleRegistry
                 ],
             ],
             'monitor' => [
-                'label' => 'Monitor & Optimise',
+                'label' => 'Live Monitor',
                 'group' => 'Control Plane',
                 'features' => [],
             ],
             'opt' => [
-                'label' => 'Optimisation',
-                'group' => 'Control Plane',
+                'label' => 'Maintenance (via Health & Tools)',
+                'group' => 'Platform operations',
                 'features' => [],
             ],
             'subscription_ad' => [
@@ -393,7 +393,7 @@ final class ModuleRegistry
         // Prior versions listed them in $always but never added them when missing
         // from $tabs — which made Today (and related) disappear from the shell.
         $always = $isSuperAdmin
-            ? ['tenants', 'monitor', 'opt', 'access', 'today', 'sales', 'metals', 'choghadiya', 'ai']
+            ? ['tenants', 'monitor', 'health', 'access', 'today', 'sales', 'metals', 'choghadiya', 'ai']
             : ['terms', 'access', 'today', 'sales', 'metals', 'choghadiya', 'ai'];
         $out = [];
         foreach ($tabs as $t) {
@@ -445,7 +445,7 @@ final class ModuleRegistry
             return ['tab' => $requested, 'redirected' => false, 'message' => null];
         }
          
-        $fallback = in_array('today', $validTabs, true) ? 'today' : (in_array('team', $validTabs, true) ? 'team' : ($validTabs[0] ?? 'today'));
+        $fallback = in_array('today', $validTabs, true) ? 'today' : (in_array('team', $validTabs, true) ? 'team' : (array_first($validTabs) ?? 'today'));
         if (!self::isEnabled($fallback) && !empty($validTabs)) {
             foreach ($validTabs as $t) {
                 if (self::isEnabled($t) || in_array($t, ['terms', 'access'], true)) {

@@ -58,7 +58,7 @@ if (
 
          
         $_deterministicSeed = (int)(
-            crc32(strtolower(trim($p['name'] ?? '')) . ($p['dob_raw'] ?? ''))
+            crc32((($p['name'] ?? '') |> trim(...) |> strtolower(...)) . ($p['dob_raw'] ?? ''))
             & 0x7FFFFFFF
         );
         $_regenFriends  = $report['lucky_driver']['friends'] ?? [];
@@ -97,7 +97,7 @@ $_mcDriver    = (int)($core['driver']    ?? 1);
 $_mcConductor = (int)($core['conductor'] ?? 1);
 $_mcPsychic   = $_mcDriver;
 $_mcDestiny   = $_mcConductor;
-$_mcFriends   = json_encode(array_map('intval', $report['lucky_driver']['friends'] ?? []));
+$_mcFriends   = json_encode(array_map(intval(...), $report['lucky_driver']['friends'] ?? []));
 $_mcNum       = json_encode((string)($report['mobile']['display'] ?? 'N/A'));
 $_mcRoot      = (int)($report['mobile']['root']      ?? 0);
 $_mcScore     = (int)($report['mobile']['score']     ?? 0);

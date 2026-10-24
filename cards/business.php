@@ -110,7 +110,7 @@ $waChatUrlPrimary = $waUsernameValid
     : null;    
 
 $photo = !empty($person['photo']) ? '/images/' . basename($person['photo'] ?? '') : 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=f1f5f9&color=94a3b8&size=512';
-$absolutePhoto = (strpos($photo, 'http') === 0) ? $photo : rtrim($baseUrl, '/') . '/images/' . rawurlencode(basename($person['photo'] ?? ''));
+$absolutePhoto = (str_starts_with($photo, 'http')) ? $photo : rtrim($baseUrl, '/') . '/images/' . rawurlencode(basename($person['photo'] ?? ''));
 
 $logo = !empty($company['logo']) ? '/images/' . basename($company['logo'] ?? '') : '';
 $companyName = $company['name'] ?? 'Organization';
@@ -347,7 +347,7 @@ if ($email)                   $personJsonLd['email'] = $email;
 if ($absolutePhoto)           $personJsonLd['image'] = $absolutePhoto;
 if ($companyName) {
     $personJsonLd['worksFor'] = ['@type' => 'Organization', 'name' => $companyName];
-    if ($website) $personJsonLd['worksFor']['url'] = (strpos($website, 'http') === 0 ? $website : 'https://' . $website);
+    if ($website) $personJsonLd['worksFor']['url'] = (str_starts_with($website, 'http') ? $website : 'https://' . $website);
 }
 $sameAs = array_values(array_filter([$socials['linkedin'] ?? null, $socials['twitter'] ?? null, $socials['instagram'] ?? null, $socials['facebook'] ?? null]));
 if ($sameAs) $personJsonLd['sameAs'] = $sameAs;
@@ -856,7 +856,7 @@ if ($sameAs) $personJsonLd['sameAs'] = $sameAs;
                    class="<?= $cls ?>" aria-label="<?= $label ?>" title="<?= $label ?>"><i class="<?= $icon ?>"></i></a>
                 <?php endforeach; ?>
                 <?php if($website):
-                    $websiteHref = htmlspecialchars(strpos($website,'http')===0 ? $website : 'https://'.$website);
+                    $websiteHref = htmlspecialchars(str_starts_with($website, 'http') ? $website : 'https://'.$website);
                 ?>
                 <!-- Website, converted from a standalone info row into a
                      matching icon inline with the social set, as requested.

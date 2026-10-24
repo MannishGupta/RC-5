@@ -1,9 +1,7 @@
 <?php
-// Version: 5.0.0 (PHP 8.5.12+ runtime helpers)
 /**
- * PHP 8.5.12+ runtime helpers for Resource Centre.
- * Loaded early from bootstrap / tenant entry points.
- * Native array_first / array_last exist on 8.5; polyfills only when absent.
+ * PHP 8.5+ runtime entry for Resource Centre.
+ * Version gates stay enforced. Native array_first / array_last — no polyfills.
  */
 declare(strict_types=1);
 
@@ -20,28 +18,5 @@ if (\PHP_VERSION_ID < 80500) {
     exit;
 }
 
-if (!\function_exists('array_first')) {
-    /**
-     * @param array<mixed> $array
-     */
-    function array_first(array $array): mixed
-    {
-        if ($array === []) {
-            return null;
-        }
-        return $array[\array_key_first($array)];
-    }
-}
-
-if (!\function_exists('array_last')) {
-    /**
-     * @param array<mixed> $array
-     */
-    function array_last(array $array): mixed
-    {
-        if ($array === []) {
-            return null;
-        }
-        return $array[\array_key_last($array)];
-    }
-}
+// PHP 8.5 provides array_first() / array_last() natively.
+// Prefer them over reset()/end()/array_key_first() value lookups in app code.

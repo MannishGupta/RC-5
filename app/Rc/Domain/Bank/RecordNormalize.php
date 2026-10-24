@@ -12,9 +12,9 @@ final class RecordNormalize
             $newData['ifsc'] = strtoupper(preg_replace('/\s+/', '', (string) $newData['ifsc']) ?? '');
         }
         if (!empty($newData['upi_id'])) {
-            $newData['upi_id'] = strtolower(trim((string) $newData['upi_id']));
+            $newData['upi_id'] = (((string) $newData['upi_id']) |> trim(...) |> strtolower(...));
         } elseif (!empty($newData['upi'])) {
-            $newData['upi'] = strtolower(trim((string) $newData['upi']));
+            $newData['upi'] = (((string) $newData['upi']) |> trim(...) |> strtolower(...));
             $newData['upi_id'] = $newData['upi'];
         }
         if (!empty($newData['acc_no'])) {

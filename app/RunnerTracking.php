@@ -33,7 +33,7 @@ final class RunnerTracking
 
     public function handleRequest(string $method, array $query, array $body, ?int $actorUserId = null): void
     {
-        $action = strtolower(trim((string)($query['action'] ?? $body['action'] ?? '')));
+        $action = (((string)($query['action'] ?? $body['action'] ?? '')) |> trim(...) |> strtolower(...));
         try {
             switch ($action) {
                 case 'runners_list':

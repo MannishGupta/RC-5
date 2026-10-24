@@ -27,10 +27,10 @@ $photoFile = trim((string)($p['photo'] ?? ''));
 $absPhoto  = '';
 
 if (!empty($photoFile)) {
-    if (strpos($photoFile, 'http') === 0) {
+    if (str_starts_with($photoFile, 'http')) {
         $absPhoto = $photoFile;
     } elseif (preg_match('/\.(jpg|jpeg|png|webp|avif)$/i', $photoFile)) {
-        $absPhoto = $protocol . $safeHost . '/images/' . implode('/', array_map('rawurlencode', explode('/', ltrim($photoFile, '/'))));
+        $absPhoto = $protocol . $safeHost . '/images/' . implode('/', array_map(rawurlencode(...), explode('/', ltrim($photoFile, '/'))));
     }
 }
 if (empty($absPhoto)) {
@@ -71,7 +71,7 @@ if (class_exists('AppDB')) {
     }
 }
 $ogImg = '';
-if (!empty($absPhoto) && strpos((string)$absPhoto, 'ui-avatars.com') === false) {
+if (!empty($absPhoto) && !str_contains((string)$absPhoto, 'ui-avatars.com')) {
     $ogImg = (string)$absPhoto;
 } elseif ($_coLogo !== '') {
     $ogImg = $_coLogo;

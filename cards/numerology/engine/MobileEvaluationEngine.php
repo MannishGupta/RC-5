@@ -42,12 +42,12 @@ class MobileEvaluationEngine {
         }
 
          
-        $sum  = array_sum(array_map('intval', str_split($clean)));
+        $sum  = array_sum(array_map(intval(...), str_split($clean)));
         $root = self::reduceChaldean($sum);
 
          
         $last2     = substr($clean, -2);
-        $last2Sum  = array_sum(array_map('intval', str_split($last2)));
+        $last2Sum  = array_sum(array_map(intval(...), str_split($last2)));
         $last2Root = self::reduceChaldean($last2Sum);
 
          

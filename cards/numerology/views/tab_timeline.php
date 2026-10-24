@@ -59,7 +59,7 @@ $pinnaclesArr = $report['pinnacles']['pinnacles'] ?? [];
             $tlData    = $report['timeline'] ?? [];
             $tlLabels  = array_column($tlData, 'year');
             $tlNumbers = array_column($tlData, 'number');
-            $tlColors  = array_map('getPYColor', $tlNumbers);
+            $tlColors  = array_map(getPYColor(...), $tlNumbers);
             $tlCurrent = array_keys(array_filter($tlData, function ($y) { return !empty($y['is_current']); }));
             $tlCurrentIdx = !empty($tlCurrent) ? $tlCurrent[0] : 0;
             ?>

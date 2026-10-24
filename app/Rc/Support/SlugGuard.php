@@ -9,7 +9,7 @@ final class SlugGuard
         if (class_exists(SafeName::class, false)) {
             return SafeName::slug($slug);
         }
-        $slug = strtolower(trim(basename(str_replace('\\', '/', $slug))));
+        $slug = ((basename(str_replace('\\', '/', $slug))) |> trim(...) |> strtolower(...));
         return (string) preg_replace('/[^a-z0-9\-]+/', '', $slug);
     }
 

@@ -26,7 +26,7 @@ foreach ($nsList as $ns => $meta) {
             if ($ns === 'company' && isset($rows['name'])) {
                 $n = 1;
             } else {
-                $n = count(array_filter($rows, 'is_array'));
+                $n = count(array_filter($rows, is_array(...)));
             }
         }
     }

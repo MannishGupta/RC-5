@@ -46,7 +46,7 @@ final class EighthSchedule
 
     public static function normalize(string $code): string
     {
-        $code = strtolower(trim($code));
+        $code = (($code) |> trim(...) |> strtolower(...));
         if (str_contains($code, '-')) {
             $code = explode('-', $code, 2)[0];
         }

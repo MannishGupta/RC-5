@@ -1,6 +1,6 @@
 # Resource Centre (RC) 3.0.3
 
-Multi-tenant PHP 8.2–8.4. Developer: **Arthsathi Limited**.
+Multi-tenant PHP **8.5.0+** (recommended 8.5.12+). Developer: **Arthsathi Limited**.
 
 | Doc | Topic |
 |-----|--------|
@@ -11,3 +11,24 @@ Multi-tenant PHP 8.2–8.4. Developer: **Arthsathi Limited**.
 | [docs/WHATSNEW.md](docs/WHATSNEW.md) | Highlights |
 
 **Never upload a code package over `tenants/`.**
+
+
+## PHP baseline
+
+- Requires **PHP 8.5.0+** (hard gate in `index.php` / `app/php85_runtime.php`).
+- Application code targets 8.5 idioms: `|>` pipe operator, `array_first` / `array_last`, `str_contains` / `str_starts_with`, first-class callables (`strtolower(...)`).
+
+## PHP 8.5 coding standard (application code)
+
+Version gate: **PHP 8.5.0+** (`PHP_VERSION_ID >= 80500`). Do not add polyfills for 8.3/8.4.
+
+| Prefer | Avoid |
+|--------|--------|
+| `str_contains` / `str_starts_with` / `str_ends_with` | `strpos(...) !== false` / `=== 0` |
+| `array_first` / `array_last` | `reset` / `end` / `$a[array_key_first($a)]` |
+| `$x \|> trim(...) \|> strtolower(...)` | `strtolower(trim($x))` |
+| `array_map(strtolower(...), $a)` | `array_map('strtolower', $a)` |
+| `match (true) { ... }` | long `switch` when each arm returns |
+| native typed properties / `readonly` | untyped public fields on new classes |
+
+Third-party trees (`app/lib/phpqrcode`, etc.) are left upstream-style on purpose.
