@@ -438,3 +438,17 @@ html[data-theme] #report-container > div:first-child {
 }
 
 /* build 4.4.8 */
+
+
+/* 5.2.6 readability */
+#report-container, #report-container p, #report-container li, #report-container td {
+  color: var(--rc-ink, #0f172a) !important;
+}
+html[data-theme="dark"] #report-container,
+html[data-theme="dark"] #report-container p,
+html[data-theme="dark"] #report-container li {
+  color: #f3f2f1 !important;
+}
+html[lang="hi"] #report-container .nr-en-copy {
+  display: none !important;
+}

@@ -1,31 +1,28 @@
-# PHP 8.2–8.5.12 full-tree audit (RC 4.5.6)
+# PHP 8.5.12 full-tree audit (RC 5.2.0)
 
 ## Scope
-- All application PHP under the web root (**282 files**)
+- All application PHP under the web root (**274 files**)
 - Excluded: `tenants/*/data`, `vendor/`, `.git/`
 
-## Automated fixes applied
-| Pattern | Count | Replacement |
-|---------|------:|-------------|
-| `curl_close()` | 11 | `unset($handle)` |
-| `imagedestroy()` | 39 | `unset($image)` |
-| `finfo_close()` | 14 | `unset($finfo)` |
+## Automated / retained fixes
+| Pattern | Status | Replacement |
+|---------|--------|-------------|
+| `curl_close()` | 0 remaining | `unset($handle)` |
+| `imagedestroy()` | 0 remaining | `unset($image)` |
+| `finfo_close()` | 0 remaining | `unset($finfo)` |
+| `(integer)/(boolean)/(double)` casts | 0 remaining | native casts |
+| `create_function` / `mysql_*` / `ereg` | 0 remaining | — |
+| backtick shell execution | 0 remaining | — |
 
-Files touched include: `index.php`, `app/bootstrap.php`, `app/Optimizer.php`, `app/AiClient.php`, `app/GoogleSheetsClient.php`, `app/VehicleRegistry.php`, `app/VcardBuilder.php`, `status/lib.php`, `status/admin_backend.php`, `tools/pwa_icon.php`, `tools/export_vcf.php`, and others.
+## 5.2.0 changes
+- Runtime gate: `PHP_VERSION_ID >= 80512`
+- Composer platform: `php: 8.5.12`
+- `Optimizer::optimizeImageFile`: pre-flight memory estimate + guarded `imagecreatetruecolor`
+- `APP_VERSION` 5.2.0 / `APP_PHP_MIN` 8.5.12
 
-## Intentionally NOT applied (would break PHP 8.2 / 8.4 hosts)
-- Pipe operator `|>`
-- `array_first()` / `array_last()` without polyfill
-- Asymmetric visibility requiring 8.4+ only code paths without guards
-
-## Already clean
-- No `(integer)/(boolean)/(double)/(binary)` casts
-- No `create_function`, `mysql_*`, `__sleep`/`__wakeup`, `utf8_encode`/`utf8_decode`
-- No backtick shell execution
-- `declare(strict_types=1)` present on metals/choghadiya and many core modules
-
-## Host action (outside this package)
-Upgrade runtime to **PHP 8.5.12+** (or latest patched 8.2/8.3/8.4) for CVE-2026-109618 / 109619 when your host provides builds.
+## Intentionally NOT applied
+- Pipe operator `|>` across entire tree (incremental only)
+- `declare(strict_types=1)` on third-party `phpqrcode` and large view templates (coercion risk)
 
 ## Verification
-`php -l` on all 282 application PHP files: **0 failures** (run on package build).
+`php -l` on application PHP files on package build host.

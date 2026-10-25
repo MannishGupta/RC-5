@@ -15,12 +15,12 @@ Multi-tenant PHP **8.5.0+** (recommended 8.5.12+). Developer: **Arthsathi Limite
 
 ## PHP baseline
 
-- Requires **PHP 8.5.0+** (hard gate in `index.php` / `app/php85_runtime.php`).
+- Requires **PHP 8.5.12+** (hard gate in `index.php` / `app/php85_runtime.php`).
 - Application code targets 8.5 idioms: `|>` pipe operator, `array_first` / `array_last`, `str_contains` / `str_starts_with`, first-class callables (`strtolower(...)`).
 
 ## PHP 8.5 coding standard (application code)
 
-Version gate: **PHP 8.5.0+** (`PHP_VERSION_ID >= 80500`). Do not add polyfills for 8.3/8.4.
+Version gate: **PHP 8.5.12+** (`PHP_VERSION_ID >= 80512`). Do not add polyfills for 8.3/8.4.
 
 | Prefer | Avoid |
 |--------|--------|

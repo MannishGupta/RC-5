@@ -1,0 +1,175 @@
+/**
+ * RC UI polish 5.2.6 — footer heights, logo plate, pager, print branding
+ */
+
+/* ── Right pane site footer: match left sidebar foot height (~38px) ── */
+#rc-main-content > footer.no-print,
+main#rc-main-content > footer[role="contentinfo"] {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 0 0.75rem !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  overflow: hidden;
+}
+#rc-main-content > footer.no-print .rc-site-footer {
+  gap: 0.35rem 0.75rem !important;
+  font-size: 10px !important;
+}
+
+/* Left sidebar foot already ~38px with padding 6px + 26px controls */
+
+/* ── Team / list pagination bar: compact ── */
+#rc-content .rc-pager,
+#rc-content [class*="rounded-xl"].border.border-slate-200.shadow-sm.text-sm {
+  /* targeted via class we will add: rc-pager */
+}
+.rc-pager {
+  margin-top: 0.5rem !important;
+  padding: 0.35rem 0.75rem !important;
+  min-height: 36px !important;
+  font-size: 11px !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+.rc-pager .rc-pager-btn,
+.rc-pager button {
+  padding: 0.2rem 0.5rem !important;
+  min-height: 26px !important;
+  font-size: 11px !important;
+}
+
+/* ── Theme-aware logo / favicon plate (supports white-on-transparent SVG) ── */
+.rc-logo-shell {
+  background: var(--rc-logo-plate, #ffffff) !important;
+  border-color: var(--rc-border, rgba(0,0,0,.12)) !important;
+}
+.rc-logo-plate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rc-logo-plate, #ffffff);
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+/* Dark theme: dark plate so light/white logo marks stay visible */
+html[data-theme="dark"] {
+  --rc-logo-plate: #1b1a19;
+}
+html[data-theme="dark"] .rc-logo-shell {
+  background: #1b1a19 !important;
+  border-color: #3b3a39 !important;
+}
+/* Light + reserve: slightly off-white plate helps pure-white SVG strokes */
+html[data-theme="light"],
+html[data-theme="reserve"],
+html:not([data-theme]) {
+  --rc-logo-plate: #ffffff;
+}
+/* Explicit company.logo_bg override from data */
+.rc-logo-plate[data-bg="dark"] {
+  background: #1b1a19 !important;
+}
+.rc-logo-plate[data-bg="light"] {
+  background: #ffffff !important;
+}
+/* Header favicon shell */
+header .rc-logo-shell img,
+.rc-logo-plate img {
+  mix-blend-mode: normal;
+}
+
+/* ── Numerology / report readability ── */
+#report-container,
+#report-container .nr-card,
+#report-container .nr-section,
+#report-container p,
+#report-container li,
+#report-container td,
+#report-container th {
+  color: var(--rc-ink, #0f172a) !important;
+  -webkit-text-fill-color: var(--rc-ink, #0f172a) !important;
+}
+html[data-theme="dark"] #report-container,
+html[data-theme="dark"] #report-container .nr-card,
+html[data-theme="dark"] #report-container p,
+html[data-theme="dark"] #report-container li,
+html[data-theme="dark"] #report-container td {
+  color: var(--rc-ink, #f3f2f1) !important;
+  -webkit-text-fill-color: var(--rc-ink, #f3f2f1) !important;
+}
+html[data-theme="dark"] #report-container .nr-card,
+html[data-theme="dark"] #report-container .nr-growth-card {
+  background: var(--rc-card, #242322) !important;
+  border-color: var(--rc-border, #3b3a39) !important;
+}
+/* Hindi report: Devanagari font; hide stray EN-only helper if present under hi */
+html[lang="hi"] #report-container,
+#report-container.rc-lang-hi,
+#report-container:lang(hi) {
+  font-family: "Noto Sans Devanagari", system-ui, sans-serif !important;
+}
+html[lang="hi"] #report-container .nr-en-only,
+#report-container.rc-lang-hi .nr-en-only {
+  display: none !important;
+}
+
+/* Janam patri embed readability */
+iframe[src*="janam"],
+.rc-janam-frame {
+  background: var(--rc-paper, #faf9f8);
+}
+/* When janam is standalone pages, body text */
+body.janam-app,
+#janam-root {
+  color: var(--rc-ink, #0f172a);
+  font-family: "Noto Sans Devanagari", system-ui, sans-serif;
+}
+html[data-theme="dark"] body.janam-app,
+html[data-theme="dark"] #janam-root {
+  color: var(--rc-ink, #f3f2f1);
+  background: var(--rc-paper, #1b1a19);
+}
+
+/* ── Directory print: company logo header + favicon per card ── */
+@media print {
+  .rc-print-brand-header {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #0f172a;
+  }
+  .rc-print-brand-header img {
+    max-height: 36px !important;
+    max-width: 160px !important;
+    width: auto !important;
+  }
+  .rc-print-brand-header .rc-print-tenant {
+    font-size: 14pt;
+    font-weight: 700;
+    color: #0f172a !important;
+  }
+  .rc-card .rc-print-favicon,
+  .rc-vcard .rc-print-favicon {
+    display: inline-block !important;
+    width: 18px !important;
+    height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 4px;
+  }
+  /* Screen: hide print-only brand chrome */
+}
+@media screen {
+  .rc-print-brand-header {
+    display: none !important;
+  }
+  .rc-print-favicon {
+    display: none !important;
+  }
+}

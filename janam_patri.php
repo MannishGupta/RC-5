@@ -97,7 +97,9 @@ if (!in_array($_jpTheme, ['light','dark','reserve'], true)) {
     $_jpTheme = 'light';
 }
 echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-        . '<title>Access limited</title></head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:2rem auto;padding:1rem">'
+        . '<title>Access limited</title>  <link rel="stylesheet" href="/assets/fonts/rc-fonts.css">
+  <link rel="stylesheet" href="/assets/rc-ui-polish.css">
+</head><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:2rem auto;padding:1rem">'
         . '<h1 style="font-size:1.25rem">Access limited</h1>'
         . '<p>' . $msg . '</p>'
         . '<p class="meta">Shared Janam Patri links only open that person&rsquo;s chart (print / language). '

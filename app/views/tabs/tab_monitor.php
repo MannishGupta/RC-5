@@ -75,7 +75,7 @@ $fmtBytes = static function ($bytes): string {
 };
 
 $diagnostics['env']['PHP Version']      = $h(PHP_VERSION);
-        $diagnostics['env']['PHP Floor']         = '8.1+ (target 8.4.x)';
+        $diagnostics['env']['PHP Floor']         = '8.5.12+ (required)';
         $diagnostics['env']['intl extension']   = extension_loaded('intl') ? 'loaded' : 'NOT LOADED';
         $diagnostics['env']['intl (INR)']        = (extension_loaded('intl') && class_exists('NumberFormatter', false))
             ? 'available'

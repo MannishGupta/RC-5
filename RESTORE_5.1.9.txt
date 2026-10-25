@@ -1,3 +1,5 @@
+[HISTORICAL — superseded by 5.2.2 package; do not use for new deploys]
+
 RC 5.1.9 — deploy notes
 =======================
 Baseline: commercial RC 5.1.8 tree.

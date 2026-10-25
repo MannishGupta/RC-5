@@ -269,12 +269,15 @@ $sigFull = static function (array $d) use ($e, $socialRowHtml): string {
 
     $logoBlock = '';
     if ($logo !== '') {
+        // Always sit logo on a light plate so white/transparent SVG marks stay readable
+        // on both light and dark signature cards (mail clients vary).
+        $plate = 'display:inline-block;background:#ffffff;border-radius:6px;padding:6px 8px;line-height:0;';
         if ($orient === 'portrait') {
-            $logoBlock = '<img src="' . $e($logo) . '" alt="' . $e($org) . '" width="64" '
-                . 'style="display:block;max-width:64px;max-height:88px;width:auto;height:auto;border:0;" />';
+            $logoBlock = '<span style="' . $plate . '"><img src="' . $e($logo) . '" alt="' . $e($org) . '" width="64" '
+                . 'style="display:block;max-width:64px;max-height:88px;width:auto;height:auto;border:0;" /></span>';
         } else {
-            $logoBlock = '<img src="' . $e($logo) . '" alt="' . $e($org) . '" width="120" '
-                . 'style="display:block;max-width:120px;max-height:44px;width:auto;height:auto;border:0;" />';
+            $logoBlock = '<span style="' . $plate . '"><img src="' . $e($logo) . '" alt="' . $e($org) . '" width="120" '
+                . 'style="display:block;max-width:120px;max-height:48px;width:auto;height:auto;border:0;" /></span>';
         }
     }
 

@@ -1,3 +1,73 @@
+5.2.10 (2026-10-25) — Markets: 7-day closes, trading hours, Markets closed status
+- Yahoo range 1mo; last 7 daily closes on FX/bullion/commodity rows
+- Session clock IST (MCX hours); status chip Markets closed when session off
+- Hours bar under toolbar
+
+5.2.9 (2026-10-25) — Markets UI: FX / Bullion / Commodities Yahoo Finance–style board
+- Card sections with colour badges (Au/Ag/Pt/Cu… and FX symbols)
+- Green/red change chips, tabular prices, dark theme
+- JSON sections.fx / sections.bullion / sections.commodities
+
+5.2.8 (2026-10-25) — Choghadiya PHP↔Scriptable 8.3 parity
+- Fix Rahu segment off-by-one (0-based index matching Scriptable)
+- Period marks: rahu, kaalVela, vaarVela, night kaalRatri
+- goodWindows excludes clash-marked Amrit/Shubh/Labh
+- JSON API version 8.3.0 + windows/dayWindows/nightWindows
+- Scriptable 8.3.1 merges API marks/windows when online
+
+5.2.7 (2026-10-25) — Choghadiya/Markets title unify; remove clock widget; Markets chrome
+- tab_choghadiya: no Insights/subtitle stack; no public_clock_widget; theme-aware embed
+- tab_metals: single sr-only title; chrome label Markets
+- metals.php embed: hide duplicate H1/sub; 5-min soft refresh; UA 5.2.7
+- choghadiya.php: data-theme from query when embed
+
+5.2.6 (2026-10-25) — UI polish: footer heights, logo plate, sig logo, print branding, report contrast
+- Main footer height 38px to match sidebar foot; compact pager bar
+- Theme-aware logo plate (dark plate in dark theme for white SVG)
+- Email signature logo on white plate for readability
+- Directory print: company logo header + tenant favicon per card
+- Numerology/Janam contrast + fonts
+
+5.2.5 (2026-10-25) — Phase 4: Status drops Bootstrap CSS; device matrix; performance notes
+- status/assets/rc-grid.css replaces bootstrap.min.css (~232KB → ~11KB)
+- Device/orientation/safe-area/print/reduced-motion rules in rc-grid + rc-compat
+- docs/PERFORMANCE.md — UI gains vs when to optimise data layer
+- Bootstrap CSS+JS fully unused on Status runtime
+
+5.2.4 (2026-10-25) — Phase 2+3 UI unify: Status chrome + drop Bootstrap JS
+- status/assets/rc-status-ui.js — vanilla Modal/Offcanvas (Bootstrap JS removed)
+- status/assets/rc-status-chrome.css — shared chrome, theme chips, cards
+- Status index/admin load rc-status-ui instead of bootstrap.bundle.min.js
+- Bootstrap CSS retained for grid/utilities only
+- docs/UI_UNIFICATION.md updated
+
+5.2.3 (2026-10-25) — UI unify bridge Dashboard↔Status
+- assets/rc-shell-unify.css: shared fonts, radii, forms, cards, theme tokens
+- Status index/admin load rc-fonts + unify; early data-theme from rc-theme
+- Dashboard loads unify after contrast-lock
+- docs/UI_UNIFICATION.md — risks of full Bootstrap merge documented
+- Bootstrap JS retained on Status (Modal/Offcanvas) until Phase 2
+
+5.2.2 (2026-10-25) — Commercial harden: fully self-hosted shell assets
+- Dashboard: local rc-fonts.css (no Google Fonts); SheetJS from /assets/vendor only
+- tab_tenants: Chart.js + datalabels from local vendor (no jsDelivr)
+- Asset cache-busters unified to APP_VERSION; web.config/.htaccess labels 5.2.2
+- ASSET_MANIFEST + commercial launch checklist updated for 5.2.2
+
+5.2.1 (2026-10-25) — UI: compact sidebar theme/logout row; theme readability lock; team page-size grid-aligned
+- Sidebar footer: 4 equal compact icons (26px) in one row (deferred/compat/a11y conflict resolved)
+- contrast-lock: permanent dark/reserve overrides for slate/white utilities + vcards/tables/inputs
+- Team directory: perPage = full grid rows only (no sparse blank slots)
+- PHP 8.5.12 gate unchanged from 5.2.0
+
+5.2.0 (2026-10-25) — PHP 8.5.12 full conformance release
+- composer.json require php: ^8.5.12
+- Runtime gate: PHP_VERSION_ID >= 80512 (app/php85_runtime.php)
+- APP_PHP_MIN / APP_VERSION bumped to 5.2.0
+- Optimizer::optimizeImageFile memory-safe allocations (fixes OOM @ ~2008 under 256M)
+- Removed remaining legacy surface; native array_first/array_last only
+- Docs and monitor floor text updated for 8.5.12
+
 5.1.16 (2026-10-24) — Sidebar 4-icon row; footer=header height; widget placement
 - Left footer: Light / Dark / Reserve + Logout as 4 equal icons in one row (system removed)
 - Right pane footer height matched to header (h-16 / 4rem)

@@ -1,5 +1,5 @@
 <?php
-// Version: 5.0.2 (PHP 8.5.12+ largest-file upgrade)
+// Version: 5.2.0 (PHP 8.5.12+)
 declare(strict_types=1);
 
  

@@ -289,14 +289,14 @@ foreach ($rows as $_hr) {
       if (!window.Chart) {
         chain = chain.then(function () {
           return loadScript('/assets/vendor/chart.umd.min.js').catch(function () {
-            return loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js');
+            return loadScript('/assets/vendor/chart.umd.min.js');
           });
         });
       }
       chain = chain.then(function () {
         if (window.ChartDataLabels) return;
         return loadScript('/assets/vendor/chartjs-plugin-datalabels.min.js').catch(function () {
-          return loadScript('https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js');
+          return loadScript('/assets/vendor/chartjs-plugin-datalabels.min.js');
         }).catch(function () { /* optional */ });
       });
       return chain;

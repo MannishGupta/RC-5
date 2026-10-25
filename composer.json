@@ -1,10 +1,19 @@
 {
   "name": "arthsathi/resource-centre",
-  "description": "Resource Centre (RC) multi-tenant PHP application",
+  "description": "Resource Centre (RC) multi-tenant PHP application — PHP 8.5.12+",
   "type": "project",
   "license": "proprietary",
   "require": {
-    "php": ">=8.2"
+    "php": "^8.5.12",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-fileinfo": "*",
+    "ext-openssl": "*",
+    "ext-curl": "*",
+    "ext-gd": "*",
+    "ext-dom": "*",
+    "ext-libxml": "*",
+    "ext-zlib": "*"
   },
   "require-dev": {
     "phpstan/phpstan": "^2.0",
@@ -19,6 +28,9 @@
     "lint": "find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l"
   },
   "config": {
-    "sort-packages": true
+    "sort-packages": true,
+    "platform": {
+      "php": "8.5.12"
+    }
   }
 }

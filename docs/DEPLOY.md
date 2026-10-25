@@ -26,7 +26,7 @@ Code ZIP or GitHub FTP **must not** replace:
 
 ## CI
 
-PHP syntax + JSON validity: `.github/workflows/rc-safety-check.yml` (PHP 8.2–8.4).
+PHP syntax + JSON validity: `.github/workflows/rc-safety-check.yml` (PHP 8.5.12).
 
 ## Status module
 

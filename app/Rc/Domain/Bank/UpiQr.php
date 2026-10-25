@@ -97,9 +97,7 @@ final class UpiQr
                 $fname = 'bank-qr-' . $id . '.png';
                 $path = $imgDir . DIRECTORY_SEPARATOR . $fname;
                 $ok = @imagepng($im, $path, 6);
-                if (function_exists('imagedestroy')) {
-                    unset($im); /* GdImage auto-freed (PHP 8.5) */
-                }
+                unset($im); /* GdImage auto-freed (PHP 8.5) */
                 if ($ok) {
                     @chmod($path, 0664);
                     return $fname;

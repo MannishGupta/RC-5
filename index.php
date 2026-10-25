@@ -39,10 +39,10 @@ ini_set('log_errors', '1');
 date_default_timezone_set('Asia/Kolkata');
 
  
-if (PHP_VERSION_ID < 80500) {
+if (PHP_VERSION_ID < 80512) {
     http_response_code(503);
     header('Content-Type: text/plain; charset=UTF-8');
-    echo 'Resource Centre 5.x requires PHP 8.5.0 or newer (recommended 8.5.12+). This host: ' . PHP_VERSION;
+    echo 'Resource Centre 5.x requires PHP 8.5.12 or newer (recommended 8.5.12+). This host: ' . PHP_VERSION;
     exit;
 }
 if (function_exists('locale_set_default')) { @locale_set_default('en_IN'); }

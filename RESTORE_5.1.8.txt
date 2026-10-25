@@ -1,3 +1,5 @@
+[HISTORICAL — superseded by 5.2.2 package; do not use for new deploys]
+
 RC 5.1.8 — restore after accidental 260924.xx overlay
 =====================================================
 

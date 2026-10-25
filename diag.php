@@ -108,7 +108,7 @@ $info = [];
 
 // ── PHP version ──────────────────────────────────────────────
 $phpId = PHP_VERSION_ID;
-$minId = 80500; // RC 5.x
+$minId = 80512; // RC 5.2 requires 8.5.12+
 $recId = 80512; // 8.5.12 security floor
 $phpOk = $phpId >= $minId;
 $phpDetail = 'Running ' . PHP_VERSION . ' (ID ' . $phpId . '). ';

@@ -1,4 +1,4 @@
-# RC production .htaccess — Version: 3.2.61 (PageSpeed / GTmetrix)
+# RC production .htaccess — Version: 5.2.2 (PageSpeed / GTmetrix)
 Options -Indexes
 ServerSignature Off
 AddDefaultCharset UTF-8

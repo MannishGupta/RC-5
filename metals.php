@@ -1,11 +1,11 @@
 <?php
-// Version: 5.0.1 (PHP 8.5.12+ critical path)
+// Version: 5.2.10 — Markets: 7-day closes, session hours, Markets closed chip
 /**
  * Google Finance–style markets board + Scriptable/KWGT JSON API
  * Endpoint: /metals.php | /metals.php?format=json | /metals.php?embed=1
  * Markets: Delhi NCR / MCX commodities + INR FX (USD, EUR, GBP, AED, CNY)
  * Timezone: Asia/Kolkata (IST) | Locales: en-IN, hi-IN
- * PHP: 8.2+ (curl handles auto-closed; PHP 8.5.12+ only — pipe no 8.5-only syntax so 8.5.12+ only native array helpers)
+ * PHP: 8.5.12+ required (RC 5.2)
  */
 declare(strict_types=1);
 
@@ -97,7 +97,7 @@ function metals_fetch_parallel(array $urls, int $timeout = 4): array
         $out = [];
         foreach ($urls as $k => $u) {
             $ctx = stream_context_create([
-                'http' => ['timeout' => $timeout, 'header' => "User-Agent: RC-Metals/4.1\r\n"],
+                'http' => ['timeout' => $timeout, 'header' => "User-Agent: RC-Metals/5.2.7\r\n"],
                 'ssl'  => ['verify_peer' => true, 'verify_peer_name' => true],
             ]);
             $body = @file_get_contents($u, false, $ctx);
@@ -119,7 +119,7 @@ function metals_fetch_parallel(array $urls, int $timeout = 4): array
             CURLOPT_CONNECTTIMEOUT => 3,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_ENCODING       => '',
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; RC-Metals/4.1; +https://arthsathi.com)',
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; RC-Metals/5.2.7; +https://arthsathi.com)',
             CURLOPT_HTTPHEADER     => [
                 'Accept: application/json,text/html;q=0.9,*/*;q=0.8',
                 'Accept-Language: en-IN,en;q=0.9',
@@ -153,7 +153,11 @@ function metals_parse_yahoo(?string $raw): ?array
         return null;
     }
     $json = json_decode($raw, true);
-    $meta = $json['chart']['result'][0]['meta'] ?? null;
+    $result = $json['chart']['result'][0] ?? null;
+    if (!is_array($result)) {
+        return null;
+    }
+    $meta = $result['meta'] ?? null;
     if (!is_array($meta) || empty($meta['regularMarketPrice'])) {
         return null;
     }
@@ -161,11 +165,64 @@ function metals_parse_yahoo(?string $raw): ?array
     $prev  = (float) ($meta['chartPreviousClose'] ?? $meta['previousClose'] ?? $price);
     $chg   = $prev > 0 ? (($price - $prev) / $prev) * 100.0 : 0.0;
     $chgAbs = $price - $prev;
+
+    $history = [];
+    $ts = $result['timestamp'] ?? [];
+    $closes = $result['indicators']['quote'][0]['close'] ?? [];
+    if (is_array($ts) && is_array($closes)) {
+        $n = min(count($ts), count($closes));
+        $pairs = [];
+        for ($i = 0; $i < $n; $i++) {
+            $c = $closes[$i] ?? null;
+            if ($c === null || !is_numeric($c)) {
+                continue;
+            }
+            $pairs[] = [
+                'date'  => gmdate('Y-m-d', (int) $ts[$i]),
+                'close' => round((float) $c, 6),
+            ];
+        }
+        if ($pairs !== []) {
+            $history = array_slice($pairs, -7);
+        }
+    }
+
     return [
         'price'     => $price,
         'changePct' => round($chg, 2),
         'changeAbs' => round($chgAbs, 4),
         'prev'      => $prev,
+        'history'   => $history,
+    ];
+}
+
+/**
+ * MCX-oriented session clock (Asia/Kolkata).
+ * Mon–Fri 09:00–23:30 IST; Sat 09:00–14:00; Sun closed.
+ *
+ * @return array{open:bool,label:string,labelHi:string,hours:string,hoursHi:string}
+ */
+function metals_session_info(): array
+{
+    $tz = new \DateTimeZone('Asia/Kolkata');
+    $now = new \DateTimeImmutable('now', $tz);
+    $dow = (int) $now->format('w');
+    $mins = ((int) $now->format('G')) * 60 + (int) $now->format('i');
+    $openMins = 9 * 60;
+    $closeMins = 23 * 60 + 30;
+    $satClose = 14 * 60;
+    $open = false;
+    if ($dow >= 1 && $dow <= 5) {
+        $open = $mins >= $openMins && $mins < $closeMins;
+    } elseif ($dow === 6) {
+        $open = $mins >= $openMins && $mins < $satClose;
+    }
+    return [
+        'open' => $open,
+        'label' => $open ? 'Markets open' : 'Markets closed',
+        'labelHi' => $open ? 'बाज़ार खुला' : 'बाज़ार बंद',
+        'hours' => 'MCX ≈ Mon–Fri 09:00–23:30 IST · Sat 09:00–14:00 · Sun closed · FX nearly 24×5',
+        'hoursHi' => 'MCX ≈ सोम–शुक्र 09:00–23:30 IST · शनि 09:00–14:00 · रवि बंद · FX लगभग 24×5',
     ];
 }
 
@@ -192,6 +249,7 @@ function metals_build_payload(array $commodities, array $fx, string $status): ar
             'mcxLot'     => $entry['mcxLot'] ?? DELHI_EX_GST_BASE[$key]['mcxLot'],
             'currency'   => 'INR',
             'tint'       => $meta['tint'],
+            'history'    => array_values(array_slice(is_array($entry['history'] ?? null) ? $entry['history'] : [], -7)),
         ];
     }
 
@@ -214,6 +272,7 @@ function metals_build_payload(array $commodities, array $fx, string $status): ar
             'changeAbs' => round($price - $prev, 4),
             'unit'      => '1 ' . $meta['base'],
             'currency'  => 'INR',
+            'history'   => array_values(array_slice(is_array($row['history'] ?? null) ? $row['history'] : [], -7)),
         ];
     }
 
@@ -224,6 +283,12 @@ function metals_build_payload(array $commodities, array $fx, string $status): ar
     return [
         'version'       => '5.0.1',
         'status'        => $status,
+        'session'       => metals_session_info(),
+        'sections'      => [
+            'fx' => array_values($fxOut),
+            'bullion' => array_values(array_filter($items, static fn($k) => in_array($k, ['gold','silver','platinum'], true), ARRAY_FILTER_USE_KEY)),
+            'commodities' => array_values(array_filter($items, static fn($k) => in_array($k, ['copper','brass','zinc','steel'], true), ARRAY_FILTER_USE_KEY)),
+        ],
         'timestamp'     => date('c'),
         'formattedTime' => date('h:i A'),
         'formattedDate' => date('d M Y'),
@@ -267,15 +332,15 @@ function metals_get_market(bool $force = false): array
     $liveHits = 0;
 
     $endpoints = [
-        'USDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/USDINR=X?interval=1d&range=5d',
-        'EURINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/EURINR=X?interval=1d&range=5d',
-        'GBPINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/GBPINR=X?interval=1d&range=5d',
-        'AEDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/AEDINR=X?interval=1d&range=5d',
-        'CNYINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/CNYINR=X?interval=1d&range=5d',
-        'gold_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=5d',
-        'plat_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/PL=F?interval=1d&range=5d',
-        'silv_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=5d',
-        'copp_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/HG=F?interval=1d&range=5d',
+        'USDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/USDINR=X?interval=1d&range=1mo',
+        'EURINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/EURINR=X?interval=1d&range=1mo',
+        'GBPINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/GBPINR=X?interval=1d&range=1mo',
+        'AEDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/AEDINR=X?interval=1d&range=1mo',
+        'CNYINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/CNYINR=X?interval=1d&range=1mo',
+        'gold_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=1mo',
+        'plat_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/PL=F?interval=1d&range=1mo',
+        'silv_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=1mo',
+        'copp_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/HG=F?interval=1d&range=1mo',
         'frank'  => 'https://api.frankfurter.app/latest?from=USD&to=INR,EUR,GBP,CNY',
     ];
 
@@ -286,6 +351,9 @@ function metals_get_market(bool $force = false): array
         if ($q && $q['price'] > 0) {
             $fxWork[$pair]['price']  = $q['price'];
             $fxWork[$pair]['change'] = $q['changePct'];
+            if (!empty($q['history'])) {
+                $fxWork[$pair]['history'] = $q['history'];
+            }
             $liveHits++;
         }
     }
@@ -311,6 +379,16 @@ function metals_get_market(bool $force = false): array
         if ($calc > 80000 && $calc < 250000) {
             $working['gold']['basePrice'] = $calc;
             $working['gold']['change']    = $goldQ['changePct'];
+            if (!empty($goldQ['history'])) {
+                $usd = (float)($fxWork['USDINR']['price'] ?? 83);
+                $working['gold']['history'] = array_map(static function ($h) use ($usd) {
+                    $c = (float)($h['close'] ?? 0);
+                    // USD/oz → INR per 10g ≈ price * USDINR * (10/31.1034768)
+                    $h['close'] = round($c * $usd * (10.0 / 31.1034768), 0);
+                    $h['unit'] = 'INR/10g';
+                    return $h;
+                }, $goldQ['history']);
+            }
             $liveHits++;
         }
     }
@@ -321,6 +399,15 @@ function metals_get_market(bool $force = false): array
         if ($calc > 20000 && $calc < 120000) {
             $working['platinum']['basePrice'] = $calc;
             $working['platinum']['change']    = $platQ['changePct'];
+            if (!empty($platQ['history'])) {
+                $usd = (float)($fxWork['USDINR']['price'] ?? 83);
+                $working['platinum']['history'] = array_map(static function ($h) use ($usd) {
+                    $c = (float)($h['close'] ?? 0);
+                    $h['close'] = round($c * $usd * (10.0 / 31.1034768), 0);
+                    $h['unit'] = 'INR/10g';
+                    return $h;
+                }, $platQ['history']);
+            }
             $liveHits++;
         }
     }
@@ -331,6 +418,16 @@ function metals_get_market(bool $force = false): array
         if ($calc > 120000 && $calc < 450000) {
             $working['silver']['basePrice'] = $calc;
             $working['silver']['change']    = $silvQ['changePct'];
+            if (!empty($silvQ['history'])) {
+                $usd = (float)($fxWork['USDINR']['price'] ?? 83);
+                $working['silver']['history'] = array_map(static function ($h) use ($usd) {
+                    $c = (float)($h['close'] ?? 0);
+                    // USD/oz → INR/kg ≈ price * USDINR * (1000/31.1034768)
+                    $h['close'] = round($c * $usd * (1000.0 / 31.1034768), 0);
+                    $h['unit'] = 'INR/kg';
+                    return $h;
+                }, $silvQ['history']);
+            }
             $liveHits++;
         }
     }
@@ -342,12 +439,18 @@ function metals_get_market(bool $force = false): array
             $working['copper']['basePrice'] = $calc;
             $working['brass']['basePrice']  = round($calc * 0.42, 2);
             $working['copper']['change']    = $coppQ['changePct'];
+            if (!empty($coppQ['history'])) { $working['copper']['history'] = $coppQ['history']; }
             $working['brass']['change']     = $coppQ['changePct'];
             $liveHits++;
         }
     }
 
-    $status  = $liveHits >= 4 ? 'live' : ($liveHits > 0 ? 'partial' : 'cached');
+    $session = metals_session_info();
+    if (!$session['open']) {
+        $status = 'closed';
+    } else {
+        $status = $liveHits >= 4 ? 'live' : ($liveHits > 0 ? 'partial' : 'cached');
+    }
     $payload = metals_build_payload($working, $fxWork, $status);
     @file_put_contents($path, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
     return $payload;
@@ -373,6 +476,9 @@ if ($format === 'json' || (isset($_SERVER['HTTP_ACCEPT']) && str_contains((strin
         $data['status'] = strtoupper((string) $data['status']);
         if ($data['status'] === 'LIVE' || $data['status'] === 'OK') {
             $data['status'] = 'LIVE';
+        }
+        if ($data['status'] === 'CLOSED') {
+            $data['status'] = 'CLOSED';
         }
     }
     // Aliases for older Scriptable widgets (base === basePrice)
@@ -416,17 +522,25 @@ if ($format === 'json' || (isset($_SERVER['HTTP_ACCEPT']) && str_contains((strin
 $t = [
     'en' => [
         'title' => 'Markets', 'sub' => 'Delhi NCR · MCX · INR FX',
-        'commodities' => 'Commodities', 'fx' => 'Currencies',
-        'incl' => 'Incl. GST', 'ex' => 'Ex-GST', 'asof' => 'As of',
-        'refresh' => 'Refresh', 'json' => 'JSON API', 'live' => 'Live',
-        'partial' => 'Partial', 'cached' => 'Cached',
+        'fx' => 'FX', 'fxSub' => 'INR crosses',
+        'bullion' => 'Bullion', 'bullionSub' => 'Gold · Silver · Platinum (GST incl.)',
+        'commodities' => 'Commodities', 'commoditiesSub' => 'Base metals · MCX / Delhi spot',
+        'incl' => 'Incl. GST', 'ex' => 'Ex-GST', 'asof' => 'Market time',
+        'refresh' => 'Refresh', 'json' => 'JSON', 'live' => 'Live',
+        'partial' => 'Partial', 'cached' => 'Cached', 'closed' => 'Markets closed',
+        'hoursTitle' => 'Trading hours', 'hist' => 'Last 7 closes',
+        'price' => 'Price', 'change' => 'Change', 'unit' => 'Unit',
     ],
     'hi' => [
         'title' => 'बाज़ार', 'sub' => 'दिल्ली NCR · MCX · INR मुद्रा',
-        'commodities' => 'कमोडिटी', 'fx' => 'मुद्राएँ',
-        'incl' => 'GST सहित', 'ex' => 'बिना GST', 'asof' => 'समय',
-        'refresh' => 'रिफ्रेश', 'json' => 'JSON API', 'live' => 'लाइव',
-        'partial' => 'आंशिक', 'cached' => 'कैश',
+        'fx' => 'मुद्रा', 'fxSub' => 'INR क्रॉस',
+        'bullion' => 'बुल्लियन', 'bullionSub' => 'सोना · चाँदी · प्लैटिनम (GST सहित)',
+        'commodities' => 'कमोडिटी', 'commoditiesSub' => 'बेस मेटल · MCX / दिल्ली स्पॉट',
+        'incl' => 'GST सहित', 'ex' => 'बिना GST', 'asof' => 'बाज़ार समय',
+        'refresh' => 'रिफ्रेश', 'json' => 'JSON', 'live' => 'लाइव',
+        'partial' => 'आंशिक', 'cached' => 'कैश', 'closed' => 'बाज़ार बंद',
+        'hoursTitle' => 'व्यापार समय', 'hist' => 'पिछले 7 बंद भाव',
+        'price' => 'मूल्य', 'change' => 'परिवर्तन', 'unit' => 'इकाई',
     ],
 ][$lang];
 
@@ -467,9 +581,17 @@ function gf_chg_label(float $c, float $abs = 0.0, int $absDec = 2): string
     return $arrow . ' ' . $pct;
 }
 
-$statusKey = (string) ($data['status'] ?? 'cached');
+$statusKey = strtolower((string) ($data['status'] ?? 'cached'));
+$session   = is_array($data['session'] ?? null) ? $data['session'] : metals_session_info();
+if (!$session['open'] && $statusKey === 'live') {
+    $statusKey = 'closed';
+}
 $statusLbl = $t[$statusKey] ?? $t['cached'];
+if ($statusKey === 'closed') {
+    $statusLbl = $t['closed'] ?? 'Markets closed';
+}
 $asOf      = ($data['formattedTime'] ?? '') . ' IST · ' . ($data['formattedDate'] ?? '');
+$hoursLine = $lang === 'hi' ? (string)($session['hoursHi'] ?? $session['hours'] ?? '') : (string)($session['hours'] ?? '');
 $jsonUrl   = '/metals.php?format=json';
 $selfPath  = '/metals.php' . ($embed ? '?embed=1&theme=' . rawurlencode($theme) : '');
 
@@ -484,88 +606,73 @@ header('Cache-Control: public, max-age=60');
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title><?= htmlspecialchars($t['title'] . ' · Resource Centre', ENT_QUOTES, 'UTF-8') ?></title>
-<meta name="description" content="Delhi NCR MCX commodity prices and INR FX rates. Scriptable JSON: metals.php?format=json">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<meta name="description" content="Delhi NCR MCX commodity prices and INR FX rates.">
+<link rel="stylesheet" href="/assets/fonts/rc-fonts.css">
 <style>
-:root {
-  --bg: #fff; --surface: #fff; --row-hover: #f8f9fa; --border: #e8eaed;
-  --text: #202124; --muted: #5f6368; --up: #137333; --up-bg: #e6f4ea;
-  --down: #a50e0e; --down-bg: #fce8e6; --chip: #e8f0fe; --chip-ink: #1967d2;
-  --header: #202124; --shadow: 0 1px 2px rgba(60,64,67,.15), 0 1px 3px 1px rgba(60,64,67,.08);
-  --radius: 8px; --font: "Google Sans", "Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans Devanagari", sans-serif;
+:root{--bg:#f0f3f7;--card:#fff;--card-border:#e3e8ef;--ink:#0f172a;--muted:#64748b;--line:#e8edf3;--up:#16a34a;--up-bg:#dcfce7;--down:#dc2626;--down-bg:#fee2e2;--flat:#64748b;--accent:#2563eb;--header:#0f172a;--shadow:0 1px 2px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.04);--radius:14px;--font:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;--mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,monospace}
+html[data-theme="dark"]{--bg:#0b1220;--card:#111827;--card-border:#1f2a3a;--ink:#f1f5f9;--muted:#94a3b8;--line:#1e293b;--up:#4ade80;--up-bg:rgba(22,163,74,.18);--down:#f87171;--down-bg:rgba(220,38,38,.18);--flat:#94a3b8;--accent:#60a5fa;--header:#f8fafc;--shadow:0 1px 2px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.25)}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:16px 14px 28px}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.top h1{font-size:1.35rem;font-weight:700;letter-spacing:-.03em;margin:0;color:var(--header)}
+.top .sub{margin:2px 0 0;font-size:12.5px;color:var(--muted);font-weight:500}
+.tools{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:6px 11px;border-radius:999px;background:var(--card);border:1px solid var(--card-border);color:var(--ink);text-decoration:none}
+.chip.ghost{background:transparent}.chip.live{background:var(--up-bg);color:var(--up);border-color:transparent}
+.chip.partial{background:#fef3c7;color:#b45309;border-color:transparent}
+.chip.closed{background:#e2e8f0;color:#475569;border-color:transparent}
+html[data-theme="dark"] .chip.closed{background:#334155;color:#cbd5e1}
+.hours-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 14px;padding:10px 14px;border-radius:12px;background:var(--card);border:1px solid var(--card-border);font-size:12.5px;color:var(--muted)}
+.hours-bar strong{color:var(--ink);font-weight:700}
+.hours-bar .dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+.hours-bar.open .dot{background:var(--up);box-shadow:0 0 0 3px var(--up-bg)}
+.hours-bar.closed .dot{background:#94a3b8}
+.hist{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.hist span{font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;padding:2px 6px;border-radius:6px;background:color-mix(in srgb,var(--muted) 10%,transparent);color:var(--muted);white-space:nowrap}
+.hist span b{color:var(--ink);font-weight:700;margin-left:3px}
+
+html[data-theme="dark"] .chip.partial{background:rgba(180,83,9,.25);color:#fbbf24}
+.asof{font-size:12px;color:var(--muted);margin:0 0 14px;font-variant-numeric:tabular-nums}
+.mkt-sec{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.mkt-sec-hd{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.mkt-sec-hd .ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px;flex:none}
+.mkt-sec-hd h2{margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.mkt-sec-hd p{margin:1px 0 0;font-size:11.5px;color:var(--muted);font-weight:500}
+.mkt-sec.fx .ico{background:linear-gradient(135deg,#dbeafe,#eff6ff)}
+.mkt-sec.bullion .ico{background:linear-gradient(135deg,#fef3c7,#fffbeb)}
+.mkt-sec.commodity .ico{background:linear-gradient(135deg,#ffedd5,#fff7ed)}
+html[data-theme="dark"] .mkt-sec.fx .ico{background:linear-gradient(135deg,#1e3a5f,#172554)}
+html[data-theme="dark"] .mkt-sec.bullion .ico{background:linear-gradient(135deg,#422006,#451a03)}
+html[data-theme="dark"] .mkt-sec.commodity .ico{background:linear-gradient(135deg,#431407,#7c2d12)}
+.mkt-cols{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(100px,.9fr) minmax(110px,1fr);gap:8px;padding:8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 65%,var(--card))}
+.mkt-cols span:nth-child(2),.mkt-cols span:nth-child(3){text-align:right}
+.mkt-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(100px,.9fr) minmax(110px,1fr);gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);position:relative;transition:background .12s ease}
+.mkt-row:last-child{border-bottom:none}
+.mkt-row:hover{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.mkt-row::before{content:"";position:absolute;left:0;top:18%;bottom:18%;width:3px;border-radius:0 3px 3px 0;background:var(--row-accent,transparent);opacity:.9}
+.mkt-row .sym{display:flex;align-items:center;gap:12px;min-width:0}
+.mkt-row .badge{width:38px;height:38px;border-radius:11px;flex:none;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;letter-spacing:-.02em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.mkt-row .nm{font-size:14px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkt-row .meta{font-size:11.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkt-row .px{text-align:right;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--mono);letter-spacing:-.02em}
+.mkt-row .ch{text-align:right;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;justify-self:end;padding:4px 9px;border-radius:8px;white-space:nowrap}
+.mkt-row .ch.up{color:var(--up);background:var(--up-bg)}
+.mkt-row .ch.down{color:var(--down);background:var(--down-bg)}
+.mkt-row .ch.flat{color:var(--flat);background:color-mix(in srgb,var(--muted) 12%,transparent)}
+.foot{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-top:8px;padding:12px 4px;font-size:11.5px;color:var(--muted)}
+.foot a{color:var(--accent);text-decoration:none;font-weight:600}
+.foot code{font-size:10.5px;opacity:.85;word-break:break-all}
+@media (max-width:560px){
+  .mkt-cols{display:none}
+  .mkt-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"sym px" "sym ch";gap:2px 10px;padding:12px 14px 12px 16px}
+  .mkt-row .sym{grid-area:sym}.mkt-row .px{grid-area:px;font-size:14px}.mkt-row .ch{grid-area:ch;font-size:11.5px;padding:3px 7px}
 }
-html[data-theme="dark"], html[data-theme="reserve"] {
-  --bg: #1b1a19; --surface: #242322; --row-hover: #2d2c2b; --border: #3b3a39;
-  --text: #f3f2f1; --muted: #c8c6c4; --up: #81c995; --up-bg: #0d3b1e;
-  --down: #f28b82; --down-bg: #3c1214; --chip: #10344f; --chip-ink: #cde5fb;
-  --header: #f3f2f1; --shadow: none;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--font); background: var(--bg); color: var(--text);
-  line-height: 1.45; min-height: 100vh; -webkit-font-smoothing: antialiased;
-}
-.wrap { max-width: 960px; margin: 0 auto; padding: 16px 16px 32px; }
-.top {
-  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
-  gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 8px;
-}
-.top h1 { font-size: 1.5rem; font-weight: 500; color: var(--header); letter-spacing: -0.02em; }
-.top .sub { font-size: 0.8125rem; color: var(--muted); margin-top: 4px; }
-.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600;
-  padding: 6px 10px; border-radius: 999px; background: var(--chip); color: var(--chip-ink);
-  text-decoration: none; border: 0; cursor: pointer;
-}
-.chip.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-.chip:hover { filter: brightness(0.97); }
-.asof { font-size: 0.75rem; color: var(--muted); margin: 12px 0 4px; }
-.section-label {
-  font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--muted); margin: 20px 0 8px; padding: 0 4px;
-}
-.board {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--shadow); overflow: hidden;
-}
-.row {
-  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(96px, auto) minmax(120px, auto);
-  gap: 8px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border);
-  text-decoration: none; color: inherit;
-}
-.row:last-child { border-bottom: 0; }
-.row:hover { background: var(--row-hover); }
-.name { font-size: 0.9375rem; font-weight: 500; }
-.meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
-.price { font-size: 0.9375rem; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
-.chg {
-  font-size: 0.8125rem; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums;
-  padding: 4px 8px; border-radius: 4px; justify-self: end; white-space: nowrap;
-}
-.chg.up { color: var(--up); background: var(--up-bg); }
-.chg.down { color: var(--down); background: var(--down-bg); }
-.chg.flat { color: var(--muted); background: transparent; }
-.foot {
-  margin-top: 20px; font-size: 0.75rem; color: var(--muted); text-align: center;
-}
-.foot a { color: var(--chip-ink); text-decoration: none; }
-.foot a:hover { text-decoration: underline; }
-code.api {
-  display: block; margin-top: 8px; font-size: 0.7rem; word-break: break-all;
-  background: var(--row-hover); padding: 8px 10px; border-radius: 6px; color: var(--muted);
-}
-@media (max-width: 560px) {
-  .row { grid-template-columns: 1fr auto; grid-template-areas: "name chg" "name price"; }
-  .name-block { grid-area: name; }
-  .price { grid-area: price; }
-  .chg { grid-area: chg; }
-  .top h1 { font-size: 1.25rem; }
-}
-<?= $embed ? 'body{min-height:auto;background:transparent}.wrap{padding:8px 4px 16px}' : '' ?>
+<?= $embed ? 'body{min-height:auto;background:transparent}.wrap{padding:4px 2px 12px}.top h1,.top .sub{display:none!important}.top{margin-bottom:6px}' : '' ?>
 </style>
 </head>
 <body>
+<?php if ($embed): ?><meta http-equiv="refresh" content="300"><?php endif; ?>
 <div class="wrap">
   <header class="top">
     <div>
@@ -573,62 +680,141 @@ code.api {
       <p class="sub"><?= htmlspecialchars($t['sub'], ENT_QUOTES, 'UTF-8') ?></p>
     </div>
     <div class="tools">
-      <span class="chip" title="Feed status"><?= htmlspecialchars($statusLbl, ENT_QUOTES, 'UTF-8') ?></span>
+      <span class="chip <?= $statusKey === 'live' ? 'live' : ($statusKey === 'partial' ? 'partial' : ($statusKey === 'closed' ? 'closed' : '')) ?>"><?= htmlspecialchars($statusLbl, ENT_QUOTES, 'UTF-8') ?></span>
       <a class="chip ghost" href="<?= htmlspecialchars($selfPath . (str_contains($selfPath, '?') ? '&' : '?') . 'refresh=1', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($t['refresh'], ENT_QUOTES, 'UTF-8') ?></a>
       <a class="chip ghost" href="<?= htmlspecialchars($jsonUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener"><?= htmlspecialchars($t['json'], ENT_QUOTES, 'UTF-8') ?></a>
       <a class="chip ghost" href="?<?= $embed ? 'embed=1&' : '' ?>theme=<?= htmlspecialchars($theme, ENT_QUOTES, 'UTF-8') ?>&lang=<?= $lang === 'hi' ? 'en' : 'hi' ?>"><?= $lang === 'hi' ? 'EN' : 'हिंदी' ?></a>
     </div>
   </header>
-  <p class="asof"><?= htmlspecialchars($t['asof'] . ' ' . $asOf, ENT_QUOTES, 'UTF-8') ?></p>
+  <p class="asof"><?= htmlspecialchars($t['asof'] . ' · ' . $asOf, ENT_QUOTES, 'UTF-8') ?></p>
+<?php
+$assetUi = [
+    'USDINR' => ['color' => '#2563eb', 'letter' => '$'],
+    'EURINR' => ['color' => '#4f46e5', 'letter' => '€'],
+    'GBPINR' => ['color' => '#7c3aed', 'letter' => '£'],
+    'AEDINR' => ['color' => '#0d9488', 'letter' => 'د'],
+    'CNYINR' => ['color' => '#dc2626', 'letter' => '¥'],
+    'gold' => ['color' => '#d97706', 'letter' => 'Au'],
+    'silver' => ['color' => '#64748b', 'letter' => 'Ag'],
+    'platinum' => ['color' => '#78716c', 'letter' => 'Pt'],
+    'copper' => ['color' => '#c2410c', 'letter' => 'Cu'],
+    'brass' => ['color' => '#ca8a04', 'letter' => 'Br'],
+    'zinc' => ['color' => '#57534e', 'letter' => 'Zn'],
+    'steel' => ['color' => '#334155', 'letter' => 'Fe'],
+];
+$bullionKeys = ['gold', 'silver', 'platinum'];
+$commodityKeys = ['copper', 'brass', 'zinc', 'steel'];
+?>
 
-  <div class="section-label"><?= htmlspecialchars($t['fx'], ENT_QUOTES, 'UTF-8') ?></div>
-  <div class="board" role="table" aria-label="<?= htmlspecialchars($t['fx'], ENT_QUOTES, 'UTF-8') ?>">
+  <section class="mkt-sec fx" aria-labelledby="sec-fx">
+    <div class="mkt-sec-hd">
+      <div class="ico" aria-hidden="true">💱</div>
+      <div><h2 id="sec-fx"><?= htmlspecialchars($t['fx'], ENT_QUOTES, 'UTF-8') ?></h2><p><?= htmlspecialchars($t['fxSub'], ENT_QUOTES, 'UTF-8') ?></p></div>
+    </div>
+    <div class="mkt-cols" aria-hidden="true"><span><?= htmlspecialchars($t['fx'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['price'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['change'], ENT_QUOTES, 'UTF-8') ?></span></div>
 <?php foreach (FX_ORDER as $pair):
     $row = $data['fx'][$pair] ?? null;
-    if (!$row) {
-        continue;
-    }
-    $chg = (float) ($row['change'] ?? 0);
-    $abs = (float) ($row['changeAbs'] ?? 0);
-    $nm  = $lang === 'hi' ? ($row['nameHi'] ?? $row['name']) : ($row['name'] ?? $pair);
-    ?>
-    <div class="row" role="row">
-      <div class="name-block">
-        <div class="name"><?= htmlspecialchars((string) $nm, ENT_QUOTES, 'UTF-8') ?></div>
-        <div class="meta"><?= htmlspecialchars($pair . ' · ' . ($row['symbol'] ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
-      </div>
-      <div class="price"><?= htmlspecialchars(gf_inr($row['price'] ?? 0, 4), ENT_QUOTES, 'UTF-8') ?></div>
-      <div class="chg <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg, $abs, 4), ENT_QUOTES, 'UTF-8') ?></div>
-    </div>
-<?php endforeach; ?>
-  </div>
+    if (!$row) { continue; }
+    $ui = $assetUi[$pair] ?? ['color' => '#64748b', 'letter' => '?'];
+    $chg = (float)($row['change'] ?? 0);
+    $abs = (float)($row['changeAbs'] ?? 0);
+    $nm = $lang === 'hi' ? (string)($row['nameHi'] ?? $row['name'] ?? $pair) : (string)($row['name'] ?? $pair);
+    $meta = $pair . ' · ' . (string)($row['symbol'] ?? 'INR');
+?>
+    <div class="mkt-row" role="row" style="--row-accent:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>">
+      <div class="sym">
+        <span class="badge" style="background:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ui['letter'], ENT_QUOTES, 'UTF-8') ?></span>
+        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div>
 
-  <div class="section-label"><?= htmlspecialchars($t['commodities'], ENT_QUOTES, 'UTF-8') ?></div>
-  <div class="board" role="table" aria-label="<?= htmlspecialchars($t['commodities'], ENT_QUOTES, 'UTF-8') ?>">
-<?php foreach (COMMODITY_ORDER as $key):
-    $row = $data['items'][$key] ?? null;
-    if (!$row) {
-        continue;
-    }
-    $chg = (float) ($row['change'] ?? 0);
-    $nm  = $lang === 'hi' ? ($row['nameHi'] ?? $row['name']) : ($row['name'] ?? $key);
-    $unit = (string) ($row['unit'] ?? '');
-    $dec  = in_array($key, ['copper', 'brass', 'zinc'], true) ? 2 : 0;
-    ?>
-    <div class="row" role="row">
-      <div class="name-block">
-        <div class="name"><?= htmlspecialchars((string) $nm, ENT_QUOTES, 'UTF-8') ?></div>
-        <div class="meta"><?= htmlspecialchars($t['incl'] . ' · ' . $unit . ' · GST ' . (int) ($row['gstPct'] ?? 0) . '%', ENT_QUOTES, 'UTF-8') ?></div>
+<?php $hist = is_array($row['history'] ?? null) ? $row['history'] : []; if ($hist !== []): ?>
+        <div class="hist" title="<?= htmlspecialchars($t['hist'] ?? 'Last 7 closes', ENT_QUOTES, 'UTF-8') ?>">
+<?php foreach ($hist as $hrow): if (!is_array($hrow)) continue; $hd = (string)($hrow['date'] ?? ''); $hc = $hrow['close'] ?? null; if ($hc === null || !is_numeric($hc)) continue; ?>
+          <span><?= htmlspecialchars(strlen($hd) >= 10 ? substr($hd, 5) : $hd, ENT_QUOTES, 'UTF-8') ?><b><?= htmlspecialchars(((float)$hc >= 100 ? number_format((float)$hc, 0) : number_format((float)$hc, 2)), ENT_QUOTES, 'UTF-8') ?></b></span>
+<?php endforeach; ?>
+        </div>
+<?php endif; ?>
+        </div>
       </div>
-      <div class="price"><?= htmlspecialchars(gf_inr($row['totalPrice'] ?? 0, $dec), ENT_QUOTES, 'UTF-8') ?></div>
-      <div class="chg <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg), ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="px"><?= htmlspecialchars(gf_inr($row['price'] ?? 0, 4), ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="ch <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg, $abs, 4), ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 <?php endforeach; ?>
-  </div>
+  </section>
+
+  <section class="mkt-sec bullion" aria-labelledby="sec-bullion">
+    <div class="mkt-sec-hd">
+      <div class="ico" aria-hidden="true">🏅</div>
+      <div><h2 id="sec-bullion"><?= htmlspecialchars($t['bullion'], ENT_QUOTES, 'UTF-8') ?></h2><p><?= htmlspecialchars($t['bullionSub'], ENT_QUOTES, 'UTF-8') ?></p></div>
+    </div>
+    <div class="mkt-cols" aria-hidden="true"><span><?= htmlspecialchars($t['bullion'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['price'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['change'], ENT_QUOTES, 'UTF-8') ?></span></div>
+<?php foreach ($bullionKeys as $key):
+    $row = $data['items'][$key] ?? null;
+    if (!$row) { continue; }
+    $ui = $assetUi[$key] ?? ['color' => '#64748b', 'letter' => '?'];
+    $chg = (float)($row['change'] ?? 0);
+    $nm = $lang === 'hi' ? (string)($row['nameHi'] ?? $row['name'] ?? $key) : (string)($row['name'] ?? $key);
+    $unit = (string)($row['unit'] ?? '');
+    $meta = $t['incl'] . ' · ' . $unit . ' · GST ' . (int)($row['gstPct'] ?? 0) . '%';
+?>
+    <div class="mkt-row" role="row" style="--row-accent:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>">
+      <div class="sym">
+        <span class="badge" style="background:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ui['letter'], ENT_QUOTES, 'UTF-8') ?></span>
+        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div>
+
+<?php $hist = is_array($row['history'] ?? null) ? $row['history'] : []; if ($hist !== []): ?>
+        <div class="hist" title="<?= htmlspecialchars($t['hist'] ?? 'Last 7 closes', ENT_QUOTES, 'UTF-8') ?>">
+<?php foreach ($hist as $hrow): if (!is_array($hrow)) continue; $hd = (string)($hrow['date'] ?? ''); $hc = $hrow['close'] ?? null; if ($hc === null || !is_numeric($hc)) continue; ?>
+          <span><?= htmlspecialchars(strlen($hd) >= 10 ? substr($hd, 5) : $hd, ENT_QUOTES, 'UTF-8') ?><b><?= htmlspecialchars(((float)$hc >= 100 ? number_format((float)$hc, 0) : number_format((float)$hc, 2)), ENT_QUOTES, 'UTF-8') ?></b></span>
+<?php endforeach; ?>
+        </div>
+<?php endif; ?>
+        </div>
+      </div>
+      <div class="px"><?= htmlspecialchars(gf_inr($row['totalPrice'] ?? 0, 0), ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="ch <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg), ENT_QUOTES, 'UTF-8') ?></div>
+    </div>
+<?php endforeach; ?>
+  </section>
+
+  <section class="mkt-sec commodity" aria-labelledby="sec-cmdty">
+    <div class="mkt-sec-hd">
+      <div class="ico" aria-hidden="true">🏗️</div>
+      <div><h2 id="sec-cmdty"><?= htmlspecialchars($t['commodities'], ENT_QUOTES, 'UTF-8') ?></h2><p><?= htmlspecialchars($t['commoditiesSub'], ENT_QUOTES, 'UTF-8') ?></p></div>
+    </div>
+    <div class="mkt-cols" aria-hidden="true"><span><?= htmlspecialchars($t['commodities'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['price'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['change'], ENT_QUOTES, 'UTF-8') ?></span></div>
+<?php foreach ($commodityKeys as $key):
+    $row = $data['items'][$key] ?? null;
+    if (!$row) { continue; }
+    $ui = $assetUi[$key] ?? ['color' => '#64748b', 'letter' => '?'];
+    $chg = (float)($row['change'] ?? 0);
+    $nm = $lang === 'hi' ? (string)($row['nameHi'] ?? $row['name'] ?? $key) : (string)($row['name'] ?? $key);
+    $unit = (string)($row['unit'] ?? '');
+    $meta = $t['incl'] . ' · ' . $unit . ' · GST ' . (int)($row['gstPct'] ?? 0) . '%';
+    $dec = in_array($key, ['copper', 'brass', 'zinc'], true) ? 2 : 0;
+?>
+    <div class="mkt-row" role="row" style="--row-accent:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>">
+      <div class="sym">
+        <span class="badge" style="background:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ui['letter'], ENT_QUOTES, 'UTF-8') ?></span>
+        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div>
+
+<?php $hist = is_array($row['history'] ?? null) ? $row['history'] : []; if ($hist !== []): ?>
+        <div class="hist" title="<?= htmlspecialchars($t['hist'] ?? 'Last 7 closes', ENT_QUOTES, 'UTF-8') ?>">
+<?php foreach ($hist as $hrow): if (!is_array($hrow)) continue; $hd = (string)($hrow['date'] ?? ''); $hc = $hrow['close'] ?? null; if ($hc === null || !is_numeric($hc)) continue; ?>
+          <span><?= htmlspecialchars(strlen($hd) >= 10 ? substr($hd, 5) : $hd, ENT_QUOTES, 'UTF-8') ?><b><?= htmlspecialchars(((float)$hc >= 100 ? number_format((float)$hc, 0) : number_format((float)$hc, 2)), ENT_QUOTES, 'UTF-8') ?></b></span>
+<?php endforeach; ?>
+        </div>
+<?php endif; ?>
+        </div>
+      </div>
+      <div class="px"><?= htmlspecialchars(gf_inr($row['totalPrice'] ?? 0, $dec), ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="ch <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg), ENT_QUOTES, 'UTF-8') ?></div>
+    </div>
+<?php endforeach; ?>
+  </section>
 
   <footer class="foot">
-    <a href="<?= htmlspecialchars((string) (CORPORATE_BRAND['url'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener"><?= htmlspecialchars((string) (CORPORATE_BRAND['text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></a>
-    <code class="api">Scriptable / KWGT: <?= htmlspecialchars(($data['corporate']['apiSelf'] ?? $jsonUrl), ENT_QUOTES, 'UTF-8') ?></code>
+    <a href="<?= htmlspecialchars((string)(CORPORATE_BRAND['url'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener"><?= htmlspecialchars((string)(CORPORATE_BRAND['text'] ?? ''), ENT_QUOTES, 'UTF-8') ?></a>
+    <code class="api">API <?= htmlspecialchars(($data['corporate']['apiSelf'] ?? $jsonUrl), ENT_QUOTES, 'UTF-8') ?></code>
   </footer>
 </div>
 </body>

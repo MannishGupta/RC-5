@@ -139,12 +139,12 @@ $logoH = 48;
         @media (prefers-reduced-motion:reduce){.spin{animation:none}}
     </style>
     
-<link rel="stylesheet" href="/assets/contrast-lock.css?v=20261009.9">
-    <link rel="stylesheet" href="/assets/rc-deferred.css?v=3.2.62" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="/assets/rc-deferred.css?v=3.2.62"></noscript>
+<link rel="stylesheet" href="/assets/contrast-lock.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
+    <link rel="stylesheet" href="/assets/rc-deferred.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="/assets/rc-deferred.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>"></noscript>
     ">
     
-    <script src="assets/a11y-tooltip.js?v=260921.29" defer></script>
+    <script src="/assets/a11y-tooltip.js?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>" defer></script>
 
 <script>
 (function(){
@@ -168,6 +168,7 @@ $logoH = 48;
 })();
 </script>
 
+    <link rel="stylesheet" href="/assets/fonts/rc-fonts.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
 </head>
 <body class="rc-login-portal">
 <canvas id="rc-login-net" class="rc-login-net" aria-hidden="true"></canvas>

@@ -593,29 +593,32 @@ get filteredList() {
                             if (h >= 36 && h <= 220) rowH = h + 12;
                         }
                         let per;
+                        // Team directory: page size = full rows of the responsive grid
+                        // (avoids half-empty last rows / blank card slots)
                         if (tab === 'team') {
-                            if (!rowH) rowH = vw < 640 ? 80 : 64;
-                            per = Math.floor(avail / rowH);
-                            const minComfort = Math.floor((vh * 0.55) / rowH);
-                            if (per < minComfort) per = minComfort;
+                            let cols = 1;
+                            if (vw >= 1280) cols = 3;
+                            else if (vw >= 768) cols = 2;
+                            else if (vw >= 640) cols = 2;
+                            const cardH = rowH && rowH >= 100 ? rowH : 168; // realistic vcard height
+                            const rows = Math.max(2, Math.min(6, Math.floor(avail / cardH) || 3));
+                            per = rows * cols;
+                            // Prefer multiples of column count; clamp to sensible range
+                            per = Math.max(cols * 2, Math.min(cols * 6, per));
                         } else if (['designations', 'departments', 'locations', 'events'].includes(tab)) {
                             let cols = 1;
                             if (vw >= 1280) cols = 3;
                             else if (vw >= 640) cols = 2;
                             if (!rowH) rowH = tab === 'events' ? 140 : 118;
-                            const rows = Math.max(2, Math.floor(avail / rowH));
+                            const rows = Math.max(2, Math.min(5, Math.floor(avail / rowH) || 3));
                             per = rows * cols;
                         } else {
                             if (!rowH) rowH = 48;
-                            per = Math.floor(avail / rowH);
+                            per = Math.floor(avail / rowH) || 12;
                         }
-                        const minP = 8;
-                        const maxP = 60;
+                        const minP = 6;
+                        const maxP = 36;
                         per = Math.max(minP, Math.min(maxP, per || minP));
-                        if (this.cur === 'team') {
-                            per = Math.max(per, Math.floor(avail / 180) * Math.max(1, Math.floor((vw - 80) / 320)));
-                            per = Math.min(Math.max(12, per), 60);
-                        }
                         if (per !== this.perPage) {
                             this.perPage = per;
                         }
@@ -623,7 +626,7 @@ get filteredList() {
                         if (this.page > maxPage) this.page = maxPage;
                         if (this.page < 1) this.page = 1;
                     } catch (e) {
-                        if (!this.perPage || this.perPage < 8) this.perPage = 16;
+                        if (!this.perPage || this.perPage < 6) this.perPage = 12;
                     }
                 },
                 bindPerPageAuto() {

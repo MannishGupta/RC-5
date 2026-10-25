@@ -405,7 +405,7 @@ $titles = [
     'access' => 'Access Mode',
     'statistics' => 'Statistics Panel',
     'sales' => 'Sales Register',
-    'metals' => 'Metals',
+    'metals' => 'Markets',
     'choghadiya' => 'Choghadiya',
     'ai' => 'AI Assistant',
     'blood' => 'Blood Group Reports',
@@ -551,16 +551,11 @@ $DASHBOARD_STATE = [
     <link rel="apple-touch-icon" href="/tools/pwa_icon.php?size=192">
 
     <!-- Performance: warm DNS/TLS for CDNs before first paint -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="dns-prefetch" href="https://cdn.sheetjs.com">
-
-    <!-- Fonts: display=swap avoids FOIT; subset weights used in UI -->
+<!-- Fonts: display=swap avoids FOIT; subset weights used in UI -->
     <!-- Fewer font files: 2 weights only; display=swap already in URL -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
-
-    <!--
+    <!-- Self-hosted typography (system UI + Noto Devanagari) -->
+    <link rel="stylesheet" href="/assets/fonts/rc-fonts.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
+<!--
       Libraries (pinned stable versions, 2026):
         - Tailwind Play CDN  — keep until a build step ships compiled CSS (biggest future win)
         - Alpine.js 3.17.4   — LTS-class 3.x; defer so it does not block parse
@@ -589,9 +584,12 @@ $DASHBOARD_STATE = [
         if (window.__xlsxP) return window.__xlsxP;
         window.__xlsxP = new Promise(function (resolve, reject) {
             var s = document.createElement('script');
-            s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+            s.src = '/assets/vendor/xlsx.full.min.js';
             s.onload = function () { resolve(); };
-            s.onerror = reject;
+            s.onerror = function () {
+                // Offline-safe: do not pull CDN by default (commercial / air-gapped hosts)
+                reject(new Error('SheetJS local vendor failed to load'));
+            };
             document.head.appendChild(s);
         });
         return window.__xlsxP;
@@ -910,10 +908,12 @@ $DASHBOARD_STATE = [
     </script>
     
     <link rel="stylesheet" href="/assets/dashboard.css?v=<?= rawurlencode(defined('APP_VERSION') ? APP_VERSION : '1') ?>">
-    <link rel="stylesheet" href="/assets/rc-layout-lock.css?v=20261003.24">
+    <link rel="stylesheet" href="/assets/rc-layout-lock.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
 
-    <link rel="stylesheet" href="/assets/a11y.css?v=20260928.07">
+    <link rel="stylesheet" href="/assets/a11y.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
     <link rel="stylesheet" href="/assets/contrast-lock.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
+    <link rel="stylesheet" href="/assets/rc-shell-unify.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
+    <link rel="stylesheet" href="/assets/rc-ui-polish.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
     <link rel="stylesheet" href="/assets/rc-compat.css?v=<?= rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : '1') ?>">
     <script src="assets/a11y-focus-trap.js?v=<?= rawurlencode(defined('APP_VERSION') ? APP_VERSION : '1') ?>" defer></script>
     <script src="assets/a11y-tooltip.js?v=<?= rawurlencode(defined('APP_VERSION') ? APP_VERSION : '1') ?>" defer></script>
@@ -942,10 +942,10 @@ button.rc-sidebar-logout span {
   grid-template-columns:repeat(4,minmax(0,1fr)) !important;
   gap:4px !important;
   align-items:center !important;
-  padding:8px !important;
+  padding:6px 8px !important;
 }
 .rc-sidebar-foot .rc-theme-seg{
-  display:contents; /* children participate in parent 4-col grid */
+  display:contents !important; /* children participate in parent 4-col grid */
 }
 .rc-theme-seg__btn,
 .rc-sidebar-logout{
@@ -954,8 +954,9 @@ button.rc-sidebar-logout span {
   justify-content:center !important;
   width:100% !important;
   min-width:0 !important;
-  height:32px !important;
-  min-height:32px !important;
+  height:26px !important;
+  min-height:26px !important;
+  max-height:28px !important;
   padding:0 !important;
   border-radius:8px !important;
   border:1px solid var(--rc-side-border, var(--rc-border, #e2e8f0)) !important;
@@ -963,12 +964,12 @@ button.rc-sidebar-logout span {
   color:var(--rc-side-ink, var(--rc-ink)) !important;
   cursor:pointer;
   line-height:1;
-  font-size:12px;
+  font-size:11px;
   font-weight:600;
   text-decoration:none !important;
 }
 .rc-theme-seg__btn i,
-.rc-sidebar-logout i{ font-size:12px; pointer-events:none; }
+.rc-sidebar-logout i{ font-size:11px; pointer-events:none; }
 .rc-theme-seg__btn:hover{
   background:var(--rc-side-active-bg, #eff6fc) !important;
   color:var(--rc-side-active-ink, var(--rc-accent, #005a9e)) !important;
@@ -988,19 +989,20 @@ aside.collapsed .rc-sidebar-foot{
   grid-template-columns:1fr !important;
 }
 aside.collapsed .rc-theme-seg__btn,
-aside.collapsed .rc-sidebar-logout{ height:28px !important; min-height:28px !important; }
+aside.collapsed .rc-sidebar-logout{ height:24px !important; min-height:24px !important; max-height:24px !important; }
 
 /* Right pane footer: same height as header (h-16 = 4rem) */
 #rc-main-content > footer.no-print,
 main#rc-main-content > footer{
-  height:4rem !important;
-  min-height:4rem !important;
-  max-height:4rem !important;
-  padding:0 1rem !important;
+  height:38px !important;
+  min-height:38px !important;
+  max-height:38px !important;
+  padding:0 0.75rem !important;
   display:flex !important;
   align-items:center !important;
   justify-content:center !important;
   box-sizing:border-box;
+  font-size:10px !important;
 }
 #rc-main-content > footer.no-print .rc-site-footer{
   width:100%;
@@ -1128,7 +1130,7 @@ button.bg-white,a.bg-white{color:#0f172a!important}
             <div x-show="sidebarOpen" class="flex-1 flex items-center h-full w-full pr-2 overflow-hidden">
                 <a :href="company.website || '#'" target="_blank" class="block w-full h-full flex items-center">
                     <template x-if="company.logo">
-                        <span class="rc-logo-shell inline-flex items-center justify-center max-h-10 max-w-full px-2 py-1 rounded-lg bg-white/95 border border-slate-200/80 shadow-sm">
+                        <span class="rc-logo-shell inline-flex items-center justify-center max-h-10 max-w-full px-2 py-1 rounded-lg border shadow-sm">
                             <span class="rc-logo-plate" :data-bg="(company.logo_bg==='dark'||company.logo_bg==='light')?company.logo_bg:'light'"><img :src="'images/'+company.logo+'?v='+ts" alt="" class="max-h-7 max-w-[140px] object-contain object-left"></span>
                         </span>
                     </template>
@@ -1140,7 +1142,7 @@ button.bg-white,a.bg-white{color:#0f172a!important}
             <div x-show="!sidebarOpen" class="flex-1 flex items-center justify-center w-full h-full">
                 <a :href="company.website || '#'" target="_blank" class="flex items-center justify-center">
                     <template x-if="company.favicon">
-                        <span class="rc-logo-shell inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white/95 border border-slate-200/80 shadow-sm">
+                        <span class="rc-logo-shell inline-flex items-center justify-center w-9 h-9 rounded-lg border shadow-sm">
                             <img :src="'images/'+company.favicon+'?v='+ts" alt="" class="w-6 h-6 object-contain">
                         </span>
                     </template>
@@ -1464,6 +1466,11 @@ button.bg-white,a.bg-white{color:#0f172a!important}
 
         <!-- Tab Content -->
         <div id="rc-content" data-rc-list class="flex-1 min-h-0 overflow-auto p-4 md:p-6 pb-24 md:pb-6">
+          <div class="rc-print-brand-header" aria-hidden="true">
+            <img x-show="company.logo" :src="company.logo ? ('images/'+company.logo+'?v='+ts) : ''" alt="">
+            <span class="rc-print-tenant" x-text="company.name || ''"></span>
+          </div>
+
                     <?php
                      
 
@@ -1623,7 +1630,7 @@ button.bg-white,a.bg-white{color:#0f172a!important}
 
                 <!-- Pagination -->
                 <template x-if="!['company','opt','numero','statistics','monitor','terms','cartags','cctv','status','leads','settings','tracking','dispatch','ops','assets','expiry','org','audit','health'].includes(cur) && filteredList.length > perPage">
-                    <div class="w-full flex items-center justify-between mt-4 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm text-sm">
+                    <div class="rc-pager w-full flex items-center justify-between mt-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs">
                         <div class="text-slate-500 font-medium text-xs">
                             Showing <span class="font-bold text-slate-900" x-text="((page-1)*perPage)+1"></span>–<span class="font-bold text-slate-800" x-text="Math.min(page*perPage, filteredList.length)"></span> of <span class="font-bold text-slate-800" x-text="filteredList.length"></span><span class="ml-2 text-slate-400">· <span class="font-mono" x-text="perPage"></span> / page</span>
                         </div>

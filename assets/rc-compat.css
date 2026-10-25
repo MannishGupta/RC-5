@@ -38,9 +38,15 @@ a, button, [role="button"], .rc-nav-item, .rc-sidebar-logout, .rc-theme-seg__btn
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-button, .rc-hit-lg, .rc-sidebar-logout, .rc-theme-seg__btn {
+button, .rc-hit-lg {
   min-height: 44px;
   min-width: 44px;
+}
+/* Compact sidebar footer icons (single row) */
+.rc-sidebar-logout, .rc-theme-seg__btn {
+  min-height: 26px !important;
+  min-width: 0 !important;
+  height: 26px !important;
 }
 /* Dense icon toolbar keeps 32px visual but expands hit area */
 header .h-8.w-8 {
@@ -97,7 +103,8 @@ img { image-rendering: -webkit-optimize-contrast; }
     padding-bottom: max(4px, env(safe-area-inset-bottom)) !important;
   }
   .rc-theme-seg__btn {
-    min-height: 36px !important;
+    min-height: 26px !important;
+    height: 26px !important;
     font-size: 11px !important;
   }
   header.rc-header, .rc-topbar {
@@ -153,4 +160,15 @@ html[data-theme="reserve"] { color-scheme: light; }
 @supports not (gap: 1rem) {
   .flex.gap-2 > * + * { margin-left: 0.5rem; }
   .flex.gap-4 > * + * { margin-left: 1rem; }
+}
+
+
+/* Phase 4 device matrix */
+@media (max-height: 500px) and (orientation: landscape) {
+  .rc-sidebar-foot { padding-top: 2px !important; padding-bottom: 2px !important; }
+  .rc-theme-seg__btn, .rc-sidebar-logout { height: 24px !important; min-height: 24px !important; }
+  header.rc-header, .rc-topbar { min-height: 44px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #rc-sidebar, .rc-sidebar-foot, .modal, .offcanvas-lg { transition: none !important; }
 }

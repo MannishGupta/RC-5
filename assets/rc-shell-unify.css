@@ -1,0 +1,165 @@
+/**
+ * RC Shell Unify — bridge Status (Bootstrap + Fluent) ↔ Dashboard (tokens + Tailwind)
+ * Version: 5.2.3
+ *
+ * Load AFTER Bootstrap + status/assets/app.css (Status) or with contrast-lock (Dashboard).
+ * Does NOT remove Bootstrap JS APIs (Modal, Offcanvas) — those stay until a Phase-2 rewrite.
+ * Goal: one font stack, one theme attribute, aligned colours / radii / control density.
+ */
+
+/* ── Shared type (matches /assets/fonts/rc-fonts.css) ───────────────────── */
+:root,
+html[data-theme] {
+  --rc-font-en: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --rc-font-hi: "Noto Sans Devanagari", system-ui, sans-serif;
+  --rc-font: var(--rc-font-en);
+  --font-display: var(--rc-font-en);
+  --font-body: var(--rc-font-en);
+  /* Control density aligned with dashboard WinUI tokens */
+  --rc-radius-sm: 4px;
+  --rc-radius-md: 8px;
+  --rc-radius-lg: 12px;
+  --rc-control-h: 32px;
+}
+
+html, body {
+  font-family: var(--rc-font-en) !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6,
+.site-nav-title, .navbar-brand {
+  font-family: var(--rc-font-en) !important;
+  letter-spacing: -0.01em;
+}
+
+:lang(hi),
+html[lang="hi"],
+.rc-hi, .rc-lang-hi {
+  font-family: var(--rc-font-hi) !important;
+  line-height: 1.65;
+}
+
+/* ── Map Status brand tokens → RC semantic tokens when on shared themes ─── */
+html[data-theme="light"],
+html:not([data-theme]) {
+  --rc-ink: #201F1E;
+  --rc-ink-muted: #605E5C;
+  --rc-paper: #FAF9F8;
+  --rc-card: #FFFFFF;
+  --rc-border: #E1DFDD;
+  --rc-accent: #0F6CBD;
+}
+
+html[data-theme="dark"] {
+  --rc-ink: #F3F2F1;
+  --rc-ink-muted: #C8C6C4;
+  --rc-paper: #1B1A19;
+  --rc-card: #242322;
+  --rc-border: #3B3A39;
+  --rc-accent: #4CA3EE;
+  color-scheme: dark;
+}
+
+html[data-theme="reserve"] {
+  --rc-ink: #1F1B16;
+  --rc-ink-muted: #5C5248;
+  --rc-paper: #F5F1EA;
+  --rc-card: #FFFFFF;
+  --rc-border: #E3DACE;
+  --rc-accent: #0F6CBD;
+}
+
+/* Status body surfaces follow RC paper/ink */
+body.st-embed,
+body:not(.rc-app-shell) {
+  background: var(--rc-paper, var(--colorNeutralBackground2, #fafafa));
+  color: var(--rc-ink, var(--colorNeutralForeground1, #201F1E));
+}
+
+/* Bootstrap chrome → RC density / radius (Status only; dashboard ignores .btn if unused) */
+.btn {
+  font-family: var(--rc-font-en) !important;
+  border-radius: var(--rc-radius-md) !important;
+  min-height: var(--rc-control-h);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.btn-primary,
+.btn-sm.fw-semibold[style*="brand-magenta"],
+a.btn[style*="brand-magenta"] {
+  background: var(--rc-accent, #0F6CBD) !important;
+  border-color: var(--rc-accent, #0F6CBD) !important;
+  color: #fff !important;
+}
+.btn-outline-secondary {
+  border-color: var(--rc-border, #E1DFDD) !important;
+  color: var(--rc-ink, #201F1E) !important;
+}
+.card, .modal-content, .offcanvas, .dropdown-menu {
+  border-radius: var(--rc-radius-lg) !important;
+  border-color: var(--rc-border, #E1DFDD) !important;
+  background: var(--rc-card, #fff) !important;
+  color: var(--rc-ink, #201F1E) !important;
+}
+.form-control, .form-select {
+  font-family: var(--rc-font-en) !important;
+  border-radius: var(--rc-radius-md) !important;
+  border-color: var(--rc-border, #E1DFDD) !important;
+  color: var(--rc-ink, #201F1E) !important;
+  background: var(--rc-card, #fff) !important;
+  min-height: var(--rc-control-h);
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--rc-accent, #0F6CBD) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rc-accent, #0F6CBD) 28%, transparent) !important;
+}
+.navbar, .site-header, header.st-header {
+  background: var(--rc-card, #fff) !important;
+  border-bottom: 1px solid var(--rc-border, #E1DFDD) !important;
+  color: var(--rc-ink, #201F1E) !important;
+}
+.text-muted, .text-secondary {
+  color: var(--rc-ink-muted, #605E5C) !important;
+}
+.badge.rounded-pill {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Dark theme Bootstrap text that stayed light-only */
+html[data-theme="dark"] body {
+  background: var(--rc-paper) !important;
+  color: var(--rc-ink) !important;
+}
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .offcanvas {
+  background: var(--rc-card) !important;
+  color: var(--rc-ink) !important;
+  border-color: var(--rc-border) !important;
+}
+html[data-theme="dark"] .navbar,
+html[data-theme="dark"] .site-header {
+  background: var(--rc-card) !important;
+  color: var(--rc-ink) !important;
+  border-color: var(--rc-border) !important;
+}
+
+/* Interaction language — consistent focus ring */
+:focus-visible {
+  outline: 3px solid var(--rc-accent, #0F6CBD);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -205,9 +205,9 @@ if ($ogImage === '') {
 $pageTitle        = "Construction Progress Update ({$currentMonthYear}) | {$company}";
 $pageDesc         = "View the official {$currentMonthYear} construction progress, tower milestones, and live site photographs for {$projectName} by {$company}.";
 
-$bsCssHref = '/assets/vendor/bootstrap.min.css';
+$bsCssHref = '/status/assets/rc-grid.css'; // Phase 4: Bootstrap CSS replaced
 $bsCssInt  = 'sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB';
-$bsJsHref  = '/assets/vendor/bootstrap.bundle.min.js';
+$bsJsHref  = ''; // Phase 3: Bootstrap JS removed — status/assets/rc-status-ui.js
 $bsJsInt   = 'sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI';
 $faHref    = '/assets/vendor/fontawesome.min.css?v=' . rawurlencode(defined('APP_VERSION') ? (string)APP_VERSION : (defined('STATUS_VERSION') ? (string)STATUS_VERSION : '1'));
 ?>
@@ -247,6 +247,16 @@ window.statusSetTheme = function (mode) {
 };
 </script>
 
+    <script>
+(function(){
+  try {
+    var m = localStorage.getItem('rc-theme') || localStorage.getItem('status-theme') || 'reserve';
+    if (m === 'system') m = 'reserve';
+    if (['light','dark','reserve'].indexOf(m) < 0) m = 'reserve';
+    document.documentElement.setAttribute('data-theme', m);
+  } catch (e) {}
+})();
+</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#910048">
@@ -285,10 +295,13 @@ window.statusSetTheme = function (mode) {
     <script type="application/ld+json"><?php echo seoJsonLd($projects, $components, $updates, $compMap, $projMap); ?></script>
 
     <link rel="preload" as="image" href="<?php echo $ogImage; ?>">
-    <link rel="stylesheet" href="<?php echo $bsCssHref; ?>" integrity="<?php echo $bsCssInt; ?>" crossorigin="anonymous">
+    <link rel="stylesheet" href="<?php echo $bsCssHref; ?>">
     <link rel="stylesheet" href="<?php echo htmlspecialchars($faHref, ENT_QUOTES, 'UTF-8'); ?>">
 
     <link rel="stylesheet" href="/status/assets/app.css?v=<?php echo @filemtime(__DIR__ . '/assets/app.css') ?: time(); ?>">
+    <link rel="stylesheet" href="/assets/fonts/rc-fonts.css?v=5.2.4">
+    <link rel="stylesheet" href="/assets/rc-shell-unify.css?v=5.2.4">
+    <link rel="stylesheet" href="/status/assets/rc-status-chrome.css?v=5.2.4">
 
 <style id="st-lb-css">
 #stLightbox{display:none;position:fixed;inset:0;z-index:10000;background:rgba(15,15,15,.92);
@@ -304,10 +317,7 @@ window.statusSetTheme = function (mode) {
 .thumb-wrapper img{pointer-events:none}
 </style>
 <style id="rc-unified-fonts">
-:root,html{--font-display:Inter,"Segoe UI",system-ui,sans-serif;--font-body:Inter,"Segoe UI","Noto Sans Devanagari",system-ui,sans-serif}
-body{font-family:var(--font-body)}
-h1,h2,h3,.site-nav-title{font-family:var(--font-display)}
-:lang(hi),.rc-hi{font-family:"Noto Sans Devanagari",system-ui,sans-serif;line-height:1.65}
+/* Fonts: /assets/fonts/rc-fonts.css + rc-shell-unify.css (system UI + Noto Devanagari) */
 </style>
 </head>
 <?php
@@ -716,7 +726,7 @@ $__bodyEmbed = $__stEmbed ? '1' : '0';
 </div>
 <?php endif; ?>
 
-<script src="<?php echo $bsJsHref; ?>" integrity="<?php echo $bsJsInt; ?>" crossorigin="anonymous" defer></script>
+<script src="/status/assets/rc-status-ui.js?v=5.2.4" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     'use strict';
@@ -745,8 +755,15 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     const consentDialog = document.getElementById('complianceModal');
-    if (consentDialog && typeof bootstrap !== 'undefined') {
-        new bootstrap.Modal(consentDialog).show();
+    if (consentDialog) {
+        if (window.rcStatusUI) {
+            window.rcStatusUI.showModal(consentDialog, { staticBackdrop: true });
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            new bootstrap.Modal(consentDialog).show();
+        } else {
+            consentDialog.classList.add('show', 'rc-st-modal-open');
+            consentDialog.style.display = 'block';
+        }
     }
 
     localStorage.setItem('lastFilterCompId', 'all');
@@ -832,7 +849,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (window.innerWidth < 992) {
             const oc = document.getElementById('sidebarMenu');
-            if (oc) (bootstrap.Offcanvas.getInstance(oc) || new bootstrap.Offcanvas(oc)).hide();
+            if (oc && window.rcStatusUI) window.rcStatusUI.hideOffcanvas(oc);
+            else if (oc && typeof bootstrap !== 'undefined' && bootstrap.Offcanvas) {
+                (bootstrap.Offcanvas.getInstance(oc) || new bootstrap.Offcanvas(oc)).hide();
+            }
         }
         if (saveState) {
             window.scrollTo({ top: 0, behavior: 'smooth' });

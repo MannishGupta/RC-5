@@ -1,3 +1,6 @@
+# HISTORICAL TEMPLATE — live rules are in .htaccess (Apache) / web.config (IIS).
+# Prefer those files; this copy is retained for reference only.
+
 # RC production .htaccess — Linux Apache (cPanel / shared hosting safe)
 # Version: 260921.52
 #

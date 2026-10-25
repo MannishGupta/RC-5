@@ -119,8 +119,9 @@ body.rc-app-shell > aside.sidebar {
   overflow-y: auto !important;
 }
 .rc-sidebar-foot {
-  display: flex !important;
-  flex-direction: column !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  flex-direction: unset !important;
   flex: 0 0 auto !important;
   margin-top: auto !important;
   visibility: visible !important;
@@ -129,24 +130,36 @@ body.rc-app-shell > aside.sidebar {
   z-index: 6 !important;
   background: var(--rc-side-bg, #f3f2f1) !important;
   border-top: 1px solid var(--rc-side-border, rgba(0,0,0,.12)) !important;
-  padding: 10px 12px !important;
-  gap: 8px !important;
+  padding: 6px 8px !important;
+  gap: 4px !important;
+  align-items: center !important;
+}
+.rc-sidebar-foot .rc-theme-seg {
+  display: contents !important; /* 3 theme btns join parent 4-col grid */
 }
 .rc-theme-seg {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 6px !important;
+  display: contents !important;
   visibility: visible !important;
 }
 .rc-theme-seg__btn {
-  display: block !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   visibility: visible !important;
   opacity: 1 !important;
-  min-height: 30px !important;
+  width: 100% !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 28px !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  font-size: 11px !important;
   color: var(--rc-side-ink, #201F1E) !important;
-  background: var(--rc-card, #fff) !important;
+  background: transparent !important;
   border: 1px solid var(--rc-side-border, #e2e8f0) !important;
+  border-radius: 6px !important;
 }
+.rc-theme-seg__btn i { font-size: 11px !important; }
 .rc-theme-seg__btn.is-active,
 .rc-theme-seg__btn[aria-pressed="true"] {
   background: var(--rc-side-active-bg, #eff6fc) !important;
@@ -154,14 +167,24 @@ body.rc-app-shell > aside.sidebar {
   border-color: var(--rc-accent, #0078d4) !important;
 }
 .rc-sidebar-logout {
-  display: flex !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   visibility: visible !important;
   opacity: 1 !important;
+  width: 100% !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 28px !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  font-size: 11px !important;
   color: var(--rc-side-ink, #201F1E) !important;
-  background: var(--rc-card, #fff) !important;
+  background: transparent !important;
   border: 1px solid var(--rc-side-border, #e2e8f0) !important;
-  min-height: 40px !important;
+  border-radius: 6px !important;
 }
+.rc-sidebar-logout i { font-size: 11px !important; }
 html[data-theme="dark"] .rc-theme-seg__btn,
 html[data-theme="dark"] .rc-sidebar-logout {
   background: #242322 !important;

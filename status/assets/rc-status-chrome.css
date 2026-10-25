@@ -1,0 +1,168 @@
+/**
+ * Status chrome + modal/offcanvas without Bootstrap JS
+ * Phase 2 + 3 · RC 5.2.4
+ */
+
+/* Backdrops */
+.rc-st-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: rgba(15, 15, 15, 0.45);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.rc-st-backdrop.is-open {
+  opacity: 1;
+}
+#rc-st-modal-backdrop { z-index: 1055; }
+#rc-st-oc-backdrop { z-index: 1040; }
+
+/* Modal — works with existing .modal markup */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  overflow-x: hidden;
+  overflow-y: auto;
+  outline: 0;
+}
+.modal.rc-st-modal-open,
+.modal.show.rc-st-modal-open {
+  display: block;
+}
+.modal .modal-dialog {
+  position: relative;
+  width: auto;
+  margin: 1.75rem auto;
+  max-width: 560px;
+  pointer-events: auto;
+}
+.modal.modal-lg .modal-dialog,
+.modal .modal-dialog.modal-lg {
+  max-width: 800px;
+}
+.modal-dialog-centered {
+  display: flex;
+  align-items: center;
+  min-height: calc(100% - 3.5rem);
+}
+body.rc-st-modal-open {
+  overflow: hidden;
+}
+
+/* Offcanvas mobile sidebar */
+@media (max-width: 991.98px) {
+  .offcanvas-lg.offcanvas-start {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1045;
+    width: min(320px, 88vw);
+    max-width: 100%;
+    background: var(--rc-card, #fff);
+    color: var(--rc-ink, #201F1E);
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+    visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+  .offcanvas-lg.offcanvas-start.rc-st-oc-open,
+  .offcanvas-lg.offcanvas-start.show {
+    transform: translateX(0);
+    visibility: visible;
+  }
+}
+@media (min-width: 992px) {
+  .offcanvas-lg.offcanvas-start {
+    position: static;
+    transform: none !important;
+    visibility: visible !important;
+    width: auto;
+    box-shadow: none;
+    background: transparent;
+  }
+  .offcanvas-lg .offcanvas-header.d-lg-none {
+    display: none !important;
+  }
+}
+
+/* Phase 2 chrome — header / theme chip align with RC */
+.st-theme-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--rc-card, #fff);
+  border: 1px solid var(--rc-border, #e1dfdd);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.st-theme-seg button {
+  font-family: var(--rc-font-en, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--rc-ink, #201F1E);
+  cursor: pointer;
+}
+.st-theme-seg button[aria-pressed="true"] {
+  background: var(--rc-accent, #0F6CBD);
+  color: #fff !important;
+}
+.st-theme-seg button:hover {
+  border-color: var(--rc-border, #e1dfdd);
+}
+
+/* Site header / brand strip */
+.site-header,
+header.st-header,
+.navbar.st-nav {
+  font-family: var(--rc-font-en, system-ui, sans-serif) !important;
+  border-bottom: 1px solid var(--rc-border, #e1dfdd) !important;
+  background: var(--rc-card, #fff) !important;
+}
+.tree-master-btn,
+.tree-selector {
+  font-family: var(--rc-font-en, system-ui, sans-serif) !important;
+  border-radius: 8px !important;
+}
+.tree-master-btn.active,
+.tree-selector.active {
+  background: color-mix(in srgb, var(--rc-accent, #0F6CBD) 12%, var(--rc-card, #fff)) !important;
+  color: var(--rc-accent, #0F6CBD) !important;
+}
+
+/* Cards */
+.update-card,
+.card {
+  border-radius: 12px !important;
+  border-color: var(--rc-border, #e1dfdd) !important;
+  background: var(--rc-card, #fff) !important;
+  color: var(--rc-ink, #201F1E) !important;
+}
+
+/* Footer */
+footer.st-footer,
+.site-footer {
+  font-family: var(--rc-font-en, system-ui, sans-serif) !important;
+  color: var(--rc-ink-muted, #605e5c) !important;
+  border-top: 1px solid var(--rc-border, #e1dfdd) !important;
+  background: var(--rc-paper, #faf9f8) !important;
+}
+
+html[data-theme="dark"] .st-theme-seg {
+  background: var(--rc-card);
+  border-color: var(--rc-border);
+}
+html[data-theme="dark"] .offcanvas-lg.offcanvas-start {
+  background: var(--rc-card);
+  color: var(--rc-ink);
+}

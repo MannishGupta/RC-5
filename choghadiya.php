@@ -292,12 +292,13 @@ function chog_kind(string $name): string
 
 function chog_rahu_window(\DateTimeImmutable $rise, \DateTimeImmutable $set, int $weekday): array
 {
-    // 8 equal segments; Rahu occupies segment by weekday (classic)
-    $segMap = [0 => 7, 1 => 1, 2 => 6, 3 => 4, 4 => 5, 5 => 3, 6 => 2]; // 1-based segment
-    $seg = $segMap[$weekday] ?? 4;
+    // Scriptable 8.3: 0-based segment index (Sun=7 … Sat=2)
+    // Classic: Sun 8th, Mon 2nd, Tue 7th, Wed 5th, Thu 6th, Fri 4th, Sat 3rd portion of day.
+    $segMap = [0 => 7, 1 => 1, 2 => 6, 3 => 4, 4 => 5, 5 => 3, 6 => 2];
+    $i = $segMap[$weekday] ?? 4;
     $total = max(1, $set->getTimestamp() - $rise->getTimestamp());
-    $len = (int)floor($total / 8);
-    $startTs = $rise->getTimestamp() + ($seg - 1) * $len;
+    $len = (int) floor($total / 8);
+    $startTs = $rise->getTimestamp() + $i * $len;
     $endTs = $startTs + $len;
     $start = (new \DateTimeImmutable('@' . $startTs))->setTimezone(chog_tz());
     $end = (new \DateTimeImmutable('@' . $endTs))->setTimezone(chog_tz());
@@ -307,15 +308,37 @@ function chog_rahu_window(\DateTimeImmutable $rise, \DateTimeImmutable $set, int
         'startIso' => $start->format('c'),
         'endIso' => $end->format('c'),
         'label' => chog_hm($start) . ' – ' . chog_hm($end),
+        'segmentIndex' => $i,
     ];
 }
 
-/** @return list<array<string,mixed>> */
-function chog_build_periods(\DateTimeImmutable $start, \DateTimeImmutable $end, array $seq, \DateTimeImmutable $now): array
+/** Vaar Vela segment indices (0-based) — Scriptable 8.3 VAAR_VELA */
+function chog_vaar_vela_index(int $weekday): int
 {
+    $map = [0 => 3, 1 => 6, 2 => 1, 3 => 4, 4 => 7, 5 => 2, 6 => 5];
+    return $map[$weekday] ?? 3;
+}
+
+/**
+ * Build 8 Choghadiya periods with Scriptable 8.3 marks (rahu / kaalVela / vaarVela / kaalRatri).
+ *
+ * @param bool $night Night sequence (Labh → kaalRatri mark)
+ * @param int $weekday 0=Sun … 6=Sat (for day marks only)
+ * @return list<array<string,mixed>>
+ */
+function chog_build_periods(
+    \DateTimeImmutable $start,
+    \DateTimeImmutable $end,
+    array $seq,
+    \DateTimeImmutable $now,
+    bool $night = false,
+    int $weekday = 0
+): array {
     $total = max(1, $end->getTimestamp() - $start->getTimestamp());
     $n = count($seq);
-    $len = (int)floor($total / max(1, $n));
+    $len = (int) floor($total / max(1, $n));
+    $rahuIdx = $night ? -1 : ([0 => 7, 1 => 1, 2 => 6, 3 => 4, 4 => 5, 5 => 3, 6 => 2][$weekday] ?? -1);
+    $vaarIdx = $night ? -1 : chog_vaar_vela_index($weekday);
     $rows = [];
     for ($i = 0; $i < $n; $i++) {
         $sTs = $start->getTimestamp() + $i * $len;
@@ -324,6 +347,21 @@ function chog_build_periods(\DateTimeImmutable $start, \DateTimeImmutable $end, 
         $e = (new \DateTimeImmutable('@' . $eTs))->setTimezone(chog_tz());
         $name = $seq[$i];
         $isNow = $now >= $s && $now < $e;
+        $marks = [];
+        if (!$night) {
+            if ($i === $rahuIdx) {
+                $marks[] = 'rahu';
+            }
+            if ($name === 'Kaal') {
+                $marks[] = 'kaalVela';
+            }
+            if ($i === $vaarIdx) {
+                $marks[] = 'vaarVela';
+            }
+        } elseif ($name === 'Labh') {
+            // Scriptable 8.3: night Labh carries Kaal Ratri mark
+            $marks[] = 'kaalRatri';
+        }
         $rows[] = [
             'name' => $name,
             'nameHi' => CHOG_NAME_HI[$name] ?? $name,
@@ -333,9 +371,65 @@ function chog_build_periods(\DateTimeImmutable $start, \DateTimeImmutable $end, 
             'startIso' => $s->format('c'),
             'endIso' => $e->format('c'),
             'isNow' => $isNow,
+            'marks' => $marks,
+            'index' => $i,
+            'night' => $night,
         ];
     }
     return $rows;
+}
+
+/**
+ * Most auspicious windows = Amrit/Shubh/Labh with no rahu/vela/ratri marks (Scriptable goodWindows).
+ *
+ * @param list<array<string,mixed>> $periods
+ * @return list<array<string,mixed>>
+ */
+function chog_good_windows(array $periods): array
+{
+    $out = [];
+    foreach ($periods as $p) {
+        $name = (string) ($p['name'] ?? '');
+        $marks = $p['marks'] ?? [];
+        if (!is_array($marks)) {
+            $marks = [];
+        }
+        if (!in_array($name, ['Amrit', 'Shubh', 'Labh'], true)) {
+            continue;
+        }
+        if ($marks !== []) {
+            continue; // conflict: Rahu / Vaar Vela / Kaal Vela / Kaal Ratri
+        }
+        $startIso = (string) ($p['startIso'] ?? '');
+        $endIso = (string) ($p['endIso'] ?? '');
+        $last = $out !== [] ? $out[count($out) - 1] : null;
+        if ($last !== null && isset($last['endIso']) && $startIso !== '') {
+            try {
+                $gap = abs(strtotime($startIso) - strtotime((string) $last['endIso']));
+                if ($gap < 60) {
+                    $out[count($out) - 1]['end'] = $p['end'] ?? $last['end'];
+                    $out[count($out) - 1]['endIso'] = $endIso;
+                    if (!in_array($name, $out[count($out) - 1]['names'], true)) {
+                        $out[count($out) - 1]['names'][] = $name;
+                    }
+                    continue;
+                }
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+        $out[] = [
+            'name' => $name,
+            'nameHi' => CHOG_NAME_HI[$name] ?? $name,
+            'names' => [$name],
+            'start' => $p['start'] ?? '',
+            'end' => $p['end'] ?? '',
+            'startIso' => $startIso,
+            'endIso' => $endIso,
+            'kind' => 'shubh',
+        ];
+    }
+    return $out;
 }
 
 function chog_parse_lat_lon(): array
@@ -395,7 +489,7 @@ function chog_payload(?\DateTimeImmutable $forDay = null, ?\DateTimeImmutable $c
     $wd = (int) $forDay->format('w');
     $tithi = chog_tithi_at($sameDay ? $clockNow : $forDay);
     $rahu = chog_rahu_window($sun['rise'], $sun['set'], $wd);
-    $dayRows = chog_build_periods($sun['rise'], $sun['set'], CHOG_DAY_SEQ[$wd], $refNow);
+    $dayRows = chog_build_periods($sun['rise'], $sun['set'], CHOG_DAY_SEQ[$wd], $refNow, false, $wd);
     if (!$sameDay) {
         foreach ($dayRows as &$r) {
             $r['isNow'] = false;
@@ -404,7 +498,7 @@ function chog_payload(?\DateTimeImmutable $forDay = null, ?\DateTimeImmutable $c
     }
     $tomorrow = $forDay->modify('+1 day');
     $nextSun = chog_sun_times($tomorrow, $lat, $lon);
-    $nightRows = chog_build_periods($sun['set'], $nextSun['rise'], CHOG_NIGHT_SEQ[$wd], $refNow);
+    $nightRows = chog_build_periods($sun['set'], $nextSun['rise'], CHOG_NIGHT_SEQ[$wd], $refNow, true, $wd);
     if (!$sameDay) {
         foreach ($nightRows as &$r) {
             $r['isNow'] = false;
@@ -440,7 +534,7 @@ function chog_payload(?\DateTimeImmutable $forDay = null, ?\DateTimeImmutable $c
         'region' => 'East Delhi / Delhi NCR, India',
         'lat' => round($lat, 5),
         'lon' => round($lon, 5),
-        'version' => '4.4.2',
+        'version' => '8.3.0',
         // Scriptable 6.3: top-level date MUST be YYYY-MM-DD string
         'date' => $iso,
         'dateStr' => $iso,
@@ -472,6 +566,9 @@ function chog_payload(?\DateTimeImmutable $forDay = null, ?\DateTimeImmutable $c
         'current' => $current,
         'day' => $dayRows,
         'night' => $nightRows,
+        'windows' => array_merge(chog_good_windows($dayRows), chog_good_windows($nightRows)),
+        'dayWindows' => chog_good_windows($dayRows),
+        'nightWindows' => chog_good_windows($nightRows),
         'corporate' => chog_corporate(),
     ];
 }
@@ -518,6 +615,9 @@ if (isset($_GET['manifest']) && (string)$_GET['manifest'] === '1') {
 
 $lang = (isset($_GET['lang']) && preg_match('/^hi/i', (string)$_GET['lang'])) ? 'hi' : 'en';
 $embed = isset($_GET['embed']) && (string)$_GET['embed'] === '1';
+$themeQ = preg_replace('/[^a-z]/', '', strtolower((string)($_GET['theme'] ?? '')));
+if (!in_array($themeQ, ['light','dark','reserve'], true)) { $themeQ = ''; }
+
 if ($embed) {
     header("Content-Security-Policy: frame-ancestors 'self' https://*.arthsathi.com https://*.fusionlimited.in https://*.digisofts.com https://*.simcoauto.com https://rc.arthsathi.com https://rc.fusionlimited.in");
 } else {
@@ -559,16 +659,11 @@ for ($i = 0; $i < 7; $i++) {
     ];
 }
 
-// Auspicious windows (Amrit / Shubh / Labh) for the selected day
-$wins = [];
-foreach (array_merge($dayRows, $nightRows) as $r) {
-    if (!is_array($r)) {
-        continue;
-    }
-    if (($r['kind'] ?? '') === 'shubh') {
-        $wins[] = $r;
-    }
-}
+// Auspicious windows — Scriptable 8.3: exclude Rahu / Vaar Vela / Kaal Vela / Kaal Ratri clashes
+$wins = chog_good_windows(array_merge(
+    is_array($dayRows) ? $dayRows : [],
+    is_array($nightRows) ? $nightRows : []
+));
 
 $kindClass = static function (string $k): string {
     return match ($k) {
@@ -599,8 +694,8 @@ $L = [
         ? '★ अमृत, ✓ शुभ और ✓ लाभ महत्वपूर्ण कार्यों के लिए सर्वोत्तम हैं। – चर सामान्य (यात्रा हेतु उपयुक्त) है।'
         : '★ Amrit, ✓ Shubh and ✓ Labh are best for important work. – Char is neutral (travel).',
     'note2' => $hi
-        ? '✕ राहु काल में शुभ कार्य टालें। नीचे दी गई सूची गणना सर्वर (IST) से है।'
-        : '✕ Avoid Rahu Kaal for auspicious work. Times are server-calculated in IST.',
+        ? '✕ राहु काल, काल वेला, वार वेला या काल रात्रि पड़ने पर अमृत/शुभ/लाभ का शुभ प्रभाव निष्फल माना जाता है — ऊपर शुभ मुहूर्तों से स्वतः बाहर।'
+        : '✕ Rahu Kaal, Kaal Vela, Vaar Vela or Kaal Ratri cancel auspiciousness — those slots are excluded from Most Auspicious Windows above.',
 ];
 
 $statusLabel = static function (string $name, bool $hi): string {
@@ -731,7 +826,7 @@ header.top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .ch-en{font-size:11px;color:var(--muted)}
 .tm{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .badge{font-size:10.5px;font-weight:700;white-space:nowrap;color:var(--t-txt);border:1px solid color-mix(in srgb,var(--t-txt) 40%,transparent);border-radius:999px;padding:3px 8px}
-.nowchip{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#D97706;border-radius:6px;padding:1px 6px;margin-left:4px}
+.mks{display:inline-flex;flex-wrap:wrap;gap:4px;margin-left:6px;vertical-align:middle}.mk{display:inline-block;font-size:10px;font-weight:700;color:#c2410c;border:1px solid currentColor;border-radius:6px;padding:0 5px;white-space:nowrap}html[data-theme=dark] .mk,.theme-dark .mk{color:#fb923c}.nowchip{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:#D97706;border-radius:6px;padding:1px 6px;margin-left:4px}
 .note{background:var(--bg2);font-size:12.5px;color:var(--muted)}
 .note p{margin:4px 0}
 footer.ft{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:12px}
@@ -739,7 +834,7 @@ footer.ft a{color:var(--saffron);font-weight:600}
 .clock{font:700 12px/1 system-ui;color:var(--accent);margin-left:auto}
 </style>
 </head>
-<body>
+<body<?= $themeQ !== '' ? ' data-theme="' . htmlspecialchars($themeQ, ENT_QUOTES, 'UTF-8') . '"' : '' ?>>
 <div class="shell">
   <header class="top">
     <button type="button" class="nav" id="prev" aria-label="<?= $h($L['prev']) ?>">‹</button>
@@ -824,13 +919,36 @@ footer.ft a{color:var(--saffron);font-weight:600}
       $kc = $kindClass((string)($r['kind'] ?? 'chal'));
       $nm = $hi ? (string)($r['nameHi'] ?? $r['name'] ?? '') : (string)($r['name'] ?? '');
       ?>
+      <?php
+        $mk = is_array($r['marks'] ?? null) ? $r['marks'] : [];
+        $mkLabels = [];
+        foreach ($mk as $m) {
+            $mkLabels[] = match ((string)$m) {
+                'rahu' => $hi ? 'राहु' : 'Rahu',
+                'kaalVela' => $hi ? 'काल.वे' : 'K.Vela',
+                'vaarVela' => $hi ? 'वार.वे' : 'V.Vela',
+                'kaalRatri' => $hi ? 'काल.रा' : 'K.Ratri',
+                default => (string)$m,
+            };
+        }
+        $badgeText = $mkLabels !== []
+            ? ($hi ? 'अशुभ (टालें)' : 'Inauspicious')
+            : $statusLabel((string)($r['name'] ?? ''), $hi);
+        if ($mkLabels !== [] && ($r['kind'] ?? '') === 'shubh') {
+            $kc = 'bad'; // visual: clash overrides auspicious colour
+        }
+      ?>
       <div class="row <?= $h($kc) ?><?= !empty($r['isNow']) ? ' on' : '' ?>">
         <div>
           <div class="ch-name"><?= $h($nm) ?><?php if (!empty($r['isNow'])): ?><span class="nowchip">NOW</span><?php endif; ?></div>
-          <div class="ch-en"><?= $h($statusLabel((string)($r['name'] ?? ''), $hi)) ?></div>
+          <div class="ch-en"><?= $h($statusLabel((string)($r['name'] ?? ''), $hi)) ?>
+            <?php if ($mkLabels !== []): ?>
+              <span class="mks"><?php foreach ($mkLabels as $lab): ?><span class="mk"><?= $h($lab) ?></span><?php endforeach; ?></span>
+            <?php endif; ?>
+          </div>
         </div>
         <span class="tm"><?= $h((string)($r['start'] ?? '') . '–' . (string)($r['end'] ?? '')) ?></span>
-        <span class="badge"><?= $h($statusLabel((string)($r['name'] ?? ''), $hi)) ?></span>
+        <span class="badge"><?= $h($badgeText) ?></span>
       </div>
     <?php endforeach; ?>
   </section>
@@ -842,13 +960,36 @@ footer.ft a{color:var(--saffron);font-weight:600}
       $kc = $kindClass((string)($r['kind'] ?? 'chal'));
       $nm = $hi ? (string)($r['nameHi'] ?? $r['name'] ?? '') : (string)($r['name'] ?? '');
       ?>
+      <?php
+        $mk = is_array($r['marks'] ?? null) ? $r['marks'] : [];
+        $mkLabels = [];
+        foreach ($mk as $m) {
+            $mkLabels[] = match ((string)$m) {
+                'rahu' => $hi ? 'राहु' : 'Rahu',
+                'kaalVela' => $hi ? 'काल.वे' : 'K.Vela',
+                'vaarVela' => $hi ? 'वार.वे' : 'V.Vela',
+                'kaalRatri' => $hi ? 'काल.रा' : 'K.Ratri',
+                default => (string)$m,
+            };
+        }
+        $badgeText = $mkLabels !== []
+            ? ($hi ? 'अशुभ (टालें)' : 'Inauspicious')
+            : $statusLabel((string)($r['name'] ?? ''), $hi);
+        if ($mkLabels !== [] && ($r['kind'] ?? '') === 'shubh') {
+            $kc = 'bad'; // visual: clash overrides auspicious colour
+        }
+      ?>
       <div class="row <?= $h($kc) ?><?= !empty($r['isNow']) ? ' on' : '' ?>">
         <div>
           <div class="ch-name"><?= $h($nm) ?><?php if (!empty($r['isNow'])): ?><span class="nowchip">NOW</span><?php endif; ?></div>
-          <div class="ch-en"><?= $h($statusLabel((string)($r['name'] ?? ''), $hi)) ?></div>
+          <div class="ch-en"><?= $h($statusLabel((string)($r['name'] ?? ''), $hi)) ?>
+            <?php if ($mkLabels !== []): ?>
+              <span class="mks"><?php foreach ($mkLabels as $lab): ?><span class="mk"><?= $h($lab) ?></span><?php endforeach; ?></span>
+            <?php endif; ?>
+          </div>
         </div>
         <span class="tm"><?= $h((string)($r['start'] ?? '') . '–' . (string)($r['end'] ?? '')) ?></span>
-        <span class="badge"><?= $h($statusLabel((string)($r['name'] ?? ''), $hi)) ?></span>
+        <span class="badge"><?= $h($badgeText) ?></span>
       </div>
     <?php endforeach; ?>
   </section>

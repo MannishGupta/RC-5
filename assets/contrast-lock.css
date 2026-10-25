@@ -1686,3 +1686,157 @@ html[data-theme="dark"] .rc-celeb-when--today {
 @media (prefers-reduced-motion: reduce) {
   .rc-mwidget { transition: none !important; }
 }
+
+
+/* === RC 5.2 READABILITY LOCK (2026-10-25) ===
+ * Permanent theme-safe text/surface pairing for light / dark / reserve.
+ * Wins over Tailwind utility classes that hard-code slate/white.
+ * Do not add competing colour !important in tab_*.php — extend this block.
+ * ======================================================================= */
+
+/* Main content ink on theme surfaces */
+html[data-theme] #rc-main-content,
+html[data-theme] main#rc-main-content,
+html[data-theme] #rc-content {
+  color: var(--rc-ink) !important;
+  background: var(--rc-paper) !important;
+}
+
+/* Hardcoded Tailwind text that breaks on dark/reserve cards */
+html[data-theme="dark"] #rc-main-content :is(
+  .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800,
+  .text-slate-950, .text-black
+),
+html[data-theme="reserve"] #rc-main-content :is(
+  .text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800,
+  .text-slate-950, .text-black
+) {
+  color: var(--rc-ink) !important;
+}
+html[data-theme="dark"] #rc-main-content :is(
+  .text-slate-600, .text-slate-500, .text-gray-600, .text-gray-500
+) {
+  color: var(--rc-ink-muted) !important;
+}
+html[data-theme="dark"] #rc-main-content :is(
+  .text-slate-400, .text-slate-300, .text-gray-400
+) {
+  color: var(--rc-ink-faint) !important;
+}
+
+/* White cards → theme card surface + readable ink */
+html[data-theme] #rc-main-content :is(
+  .bg-white, .bg-white\/50, .bg-white\/80, .bg-white\/95
+) {
+  background-color: var(--rc-card) !important;
+  color: var(--rc-ink) !important;
+}
+html[data-theme] #rc-main-content :is(
+  .bg-slate-50, .bg-slate-100, .bg-gray-50, .bg-gray-100
+) {
+  background-color: var(--rc-paper) !important;
+  color: var(--rc-ink) !important;
+}
+html[data-theme] #rc-main-content :is(
+  .border-slate-200, .border-slate-100, .border-gray-200, .border-slate-300
+) {
+  border-color: var(--rc-border) !important;
+}
+
+/* Headers / page titles */
+html[data-theme] header[role="banner"] h1,
+html[data-theme] #rc-main-content h1,
+html[data-theme] #rc-main-content h2,
+html[data-theme] #rc-main-content h3 {
+  color: var(--rc-ink) !important;
+}
+
+/* Inputs / selects stay readable */
+html[data-theme] #rc-main-content :is(input, select, textarea) {
+  color: var(--rc-ink) !important;
+  background-color: var(--rc-card) !important;
+  border-color: var(--rc-border) !important;
+}
+html[data-theme] #rc-main-content :is(input, select, textarea)::placeholder {
+  color: var(--rc-ink-faint) !important;
+  opacity: 1 !important;
+}
+
+/* Team vcards — token-driven (overrides hardcoded #0f172a etc.) */
+html[data-theme] .rc-vcard {
+  background: var(--rc-card) !important;
+  border-color: var(--rc-border) !important;
+  color: var(--rc-ink) !important;
+}
+html[data-theme] .rc-vcard-name { color: var(--rc-ink) !important; }
+html[data-theme] .rc-vcard-role { color: var(--rc-ink-soft) !important; }
+html[data-theme] .rc-vcard-line { color: var(--rc-ink-muted) !important; }
+html[data-theme] .rc-vcard-photo {
+  background: var(--rc-paper) !important;
+  border-color: var(--rc-border) !important;
+  color: var(--rc-ink-muted) !important;
+}
+html[data-theme] .rc-vcard:hover {
+  border-color: color-mix(in srgb, var(--rc-accent) 40%, var(--rc-border)) !important;
+}
+html[data-theme] .rc-fav-btn {
+  background: var(--rc-card) !important;
+  border-color: var(--rc-border) !important;
+  color: var(--rc-ink-muted) !important;
+}
+
+/* Tables */
+html[data-theme] #rc-main-content table {
+  color: var(--rc-ink) !important;
+}
+html[data-theme] #rc-main-content thead th {
+  color: var(--rc-ink-soft) !important;
+  background: var(--rc-paper) !important;
+  border-color: var(--rc-border) !important;
+}
+html[data-theme] #rc-main-content tbody td {
+  color: var(--rc-ink) !important;
+  border-color: var(--rc-border) !important;
+}
+
+/* Empty states / dashed boxes */
+html[data-theme] #rc-main-content .border-dashed {
+  border-color: var(--rc-border) !important;
+  color: var(--rc-ink-muted) !important;
+}
+
+/* Pagination footer strip in main */
+html[data-theme] #rc-main-content .text-slate-400 {
+  color: var(--rc-ink-faint) !important;
+}
+
+/* Ensure sidebar footer stays one compact row (final authority) */
+.rc-sidebar-foot,
+#rc-sidebar-foot {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+  padding: 6px 8px !important;
+  align-items: center !important;
+}
+.rc-sidebar-foot .rc-theme-seg,
+#rc-sidebar-foot .rc-theme-seg {
+  display: contents !important;
+}
+.rc-theme-seg__btn,
+.rc-sidebar-logout {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 28px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  padding: 0 !important;
+  font-size: 11px !important;
+}
+.rc-theme-seg__btn i,
+.rc-sidebar-logout i {
+  font-size: 11px !important;
+}
+aside.collapsed .rc-sidebar-foot {
+  grid-template-columns: 1fr !important;
+}

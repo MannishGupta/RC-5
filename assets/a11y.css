@@ -44,15 +44,19 @@ button.rc-chrome-btn.pri:focus-visible,
 /* ── Hit targets (2.5.8 Target Size minimum / mobile 44px) ─ */
 @media (pointer:coarse){
   button,a.rc-chrome-btn,.tbtn,[role="button"],
-  .rc-theme-seg__btn,.rc-sidebar-logout,.rc-mobile-logout,
+  .rc-mobile-logout,
   .nav-item,aside a[href]{
     min-height:44px;min-width:44px;
+  }
+  /* Sidebar theme/logout stay compact so 4 icons fit one row */
+  .rc-theme-seg__btn,.rc-sidebar-logout{
+    min-height:28px!important;min-width:0!important;height:28px!important;
   }
 }
 .rc-consent-btn,[data-open-whatsnew],.rc-primary-action,
 button[type="submit"],.rc-chrome-btn.pri{min-height:44px;min-width:44px}
 .rc-sidebar-logout,button.rc-sidebar-logout{
-  min-width:40px!important;min-height:36px!important;
+  min-width:0!important;min-height:26px!important;height:26px!important;
 }
 
 /* ── Reduced motion (2.3.3) ────────────────────────────── */

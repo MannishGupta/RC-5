@@ -544,7 +544,7 @@ document.addEventListener('alpine:init', () => {
         flex-direction: column;
         min-height: 0;
       }
-      .rc-vcard:hover { border-color: #cbd5e1; box-shadow: 0 8px 24px rgba(15,23,42,.08); }
+      .rc-vcard:hover { border-color: var(--rc-border, #cbd5e1); box-shadow: 0 8px 24px rgba(15,23,42,.08); }
       .rc-vcard.is-selected {
         border-color: #2563eb !important;
         box-shadow: 0 0 0 3px rgba(37,99,235,.45), 0 8px 24px rgba(37,99,235,.18) !important;
@@ -579,7 +579,7 @@ document.addEventListener('alpine:init', () => {
         font-weight: 800; font-size: 1.25rem; color: #64748b;
       }
       .rc-vcard-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 11px; }
-      .rc-vcard-name { font-size: 0.95rem; font-weight: 800; color: #0f172a; line-height: 1.25; margin: 0 0 2px; }
+      .rc-vcard-name { font-size: 0.95rem; font-weight: 800; color: var(--rc-ink, #0f172a); line-height: 1.25; margin: 0 0 2px; }
       html[data-theme="dark"] .rc-vcard-name, [data-theme="dark"] .rc-vcard-name { color: #f8fafc !important; }
       html[data-theme="dark"] .rc-vcard-role, [data-theme="dark"] .rc-vcard-role { color: #93c5fd !important; }
       html[data-theme="dark"] .rc-vcard-line, [data-theme="dark"] .rc-vcard-line { color: #cbd5e1 !important; }
@@ -677,7 +677,7 @@ document.addEventListener('alpine:init', () => {
                             :aria-pressed="isFav(i) ? 'true' : 'false'"
                             :aria-label="isFav(i) ? 'Remove from favourites' : 'Add to favourites'"
                             :title="isFav(i) ? 'Unpin' : 'Pin favourite'"
-                            style="position:absolute;top:0.5rem;right:0.5rem;z-index:2;width:1.75rem;height:1.75rem;border-radius:999px;border:1px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                            style="position:absolute;top:0.5rem;right:0.5rem;z-index:2;width:1.75rem;height:1.75rem;border-radius:999px;border:1px solid var(--rc-border,#e2e8f0);background:var(--rc-card,#fff);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--rc-ink-muted)">
                         <i class="fa-star text-xs" :class="isFav(i) ? 'fa-solid text-amber-500' : 'fa-regular text-slate-400'" aria-hidden="true"></i>
                     </button>
                     <div class="rc-vcard-photo">
@@ -689,7 +689,12 @@ document.addEventListener('alpine:init', () => {
                         </template>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <h3 class="rc-vcard-name" x-text="i.name || '—'"></h3>
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <img class="rc-print-favicon" width="18" height="18" alt=""
+                                 x-show="company && company.favicon"
+                                 :src="(company && company.favicon) ? ('images/' + company.favicon + '?v=' + (ts || '')) : ''">
+                            <h3 class="rc-vcard-name truncate" x-text="i.name || '—'"></h3>
+                        </div>
                         <p class="rc-vcard-role">
                             <button type="button" class="text-left bg-transparent border-0 p-0 font-inherit cursor-pointer"
                                 :class="isPendingField(labelDesig(i)) ? 'text-amber-700 underline decoration-amber-400 decoration-dotted font-semibold' : ''"

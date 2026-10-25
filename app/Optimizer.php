@@ -1,5 +1,5 @@
 <?php
-// Version: 5.1.7 (optimiser: global heal, verify, status, FKs, summary)
+// Version: 5.2.0 (PHP 8.5.12 memory-safe image path) (optimiser: global heal, verify, status, FKs, summary)
 declare(strict_types=1);
 
 
@@ -1990,6 +1990,34 @@ class SystemDataOptimizer
             return $empty + ['message' => 'bad_image'];
         }
 
+        // Memory-safe edge limit (256M hosts): truecolor ≈ 4 bytes/pixel
+        $srcW = (int) $info[0];
+        $srcH = (int) $info[1];
+        $memLimit = ini_get('memory_limit');
+        $limitBytes = 0;
+        if (is_string($memLimit) && $memLimit !== '' && $memLimit !== '-1') {
+            $u = strtolower(substr($memLimit, -1));
+            $n = (float) $memLimit;
+            $limitBytes = (int) match ($u) {
+                'g' => $n * 1024 ** 3,
+                'm' => $n * 1024 ** 2,
+                'k' => $n * 1024,
+                default => $n,
+            };
+        }
+        if ($limitBytes > 0) {
+            $free = max(0, $limitBytes - memory_get_usage(true));
+            $est = (float) $srcW * (float) $srcH * 4.0 * 2.0;
+            if ($est > $free * 0.55) {
+                $scale = sqrt(max(0.05, ($free * 0.35) / max(1.0, (float) $srcW * (float) $srcH * 4.0)));
+                $targetEdge = (int) floor(max($srcW, $srcH) * min(1.0, $scale));
+                if ($targetEdge < 320) {
+                    return $empty + ['message' => 'image_too_large_for_memory', 'width' => $srcW, 'height' => $srcH];
+                }
+                $maxEdge = min($maxEdge, $targetEdge);
+            }
+        }
+
         $src = null;
         if ($ext === 'jpg' || $ext === 'jpeg') {
             $src = @imagecreatefromjpeg($path);
@@ -2033,7 +2061,18 @@ class SystemDataOptimizer
             $scale = $maxEdge / max($w, $h);
             $nw = max(1, (int) round($w * $scale));
             $nh = max(1, (int) round($h * $scale));
-            $dst = imagecreatetruecolor($nw, $nh);
+            // Guarded allocation (avoids fatal OOM under 256M)
+            $need = (float) $nw * (float) $nh * 4.0 + 1048576.0;
+            $avail = 0;
+            $ml = ini_get('memory_limit');
+            if (is_string($ml) && $ml !== '' && $ml !== '-1') {
+                $u = strtolower(substr($ml, -1));
+                $n = (float) $ml;
+                $lb = (int) match ($u) { 'g' => $n * 1024 ** 3, 'm' => $n * 1024 ** 2, 'k' => $n * 1024, default => $n };
+                $avail = max(0, $lb - memory_get_usage(true));
+            }
+            $dst = ($avail === 0 || $need <= $avail * 0.70) ? @imagecreatetruecolor($nw, $nh) : false;
+
             if ($dst) {
                 imagealphablending($dst, false);
                 imagesavealpha($dst, true);
@@ -2051,7 +2090,18 @@ class SystemDataOptimizer
             $scale = 0.85;
             $nw = max(1, (int) round($w * $scale));
             $nh = max(1, (int) round($h * $scale));
-            $dst = imagecreatetruecolor($nw, $nh);
+            // Guarded allocation (avoids fatal OOM under 256M)
+            $need = (float) $nw * (float) $nh * 4.0 + 1048576.0;
+            $avail = 0;
+            $ml = ini_get('memory_limit');
+            if (is_string($ml) && $ml !== '' && $ml !== '-1') {
+                $u = strtolower(substr($ml, -1));
+                $n = (float) $ml;
+                $lb = (int) match ($u) { 'g' => $n * 1024 ** 3, 'm' => $n * 1024 ** 2, 'k' => $n * 1024, default => $n };
+                $avail = max(0, $lb - memory_get_usage(true));
+            }
+            $dst = ($avail === 0 || $need <= $avail * 0.70) ? @imagecreatetruecolor($nw, $nh) : false;
+
             if ($dst) {
                 imagealphablending($dst, false);
                 imagesavealpha($dst, true);
