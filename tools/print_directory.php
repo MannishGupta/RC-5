@@ -1,5 +1,5 @@
 <?php
-// Version: 5.1.6 (print directory without QR)
+// Version: 5.2.12 (print directory — no pipe operator; PHP 8.5.12 safe)
 
 declare(strict_types=1);
 
@@ -43,7 +43,7 @@ $locName   = class_exists('AppLookup') ? AppLookup::map($locs) : [];
 $rcEnrichMap = static function (array $map): array {
     $out = $map;
     foreach ($map as $k => $v) {
-        $lk = (((string) $k) |> trim(...) |> strtolower(...));
+        $lk = strtolower(trim((string) $k));
         if ($lk !== '' && !isset($out[$lk])) {
             $out[$lk] = $v;
         }
@@ -116,7 +116,7 @@ $rcResolveLabel = static function (array $m, array $nameMap, array $fullMap, arr
 
 $rankOf = static function (array $m) use ($desigMap): int {
     foreach (['designation_id', 'designation_code', 'designation'] as $fk) {
-        $did = (((string) ($m[$fk] ?? '')) |> trim(...) |> strtolower(...));
+        $did = strtolower(trim((string) ($m[$fk] ?? '')));
         if ($did !== '' && isset($desigMap[$did]['rank'])) {
             return (int) $desigMap[$did]['rank'];
         }
@@ -424,14 +424,14 @@ foreach ($team as $m) {
         ['location_name', 'office', 'branch']
     );
 
-    $dKey = (((string) ($m['designation_id'] ?? $m['designation_code'] ?? $m['designation'] ?? '')) |> trim(...) |> strtolower(...));
-    $tKey = (((string) ($m['department_id'] ?? $m['department_code'] ?? $m['department'] ?? '')) |> trim(...) |> strtolower(...));
+    $dKey = strtolower(trim((string) ($m['designation_id'] ?? $m['designation_code'] ?? $m['designation'] ?? '')));
+    $tKey = strtolower(trim((string) ($m['department_id'] ?? $m['department_code'] ?? $m['department'] ?? '')));
     $dE = (string) ($desigMap[$dKey]['emoji'] ?? $desigMap[$dKey]['icon'] ?? '');
     $tE = (string) ($deptMap[$tKey]['emoji'] ?? $deptMap[$tKey]['icon'] ?? '');
-    if ($dE !== '' && $desig !== '' && mb_!str_contains($desig, $dE)) {
+    if ($dE !== '' && $desig !== '' && !str_contains($desig, $dE)) {
         $desig = trim($desig . ' ' . $dE);
     }
-    if ($tE !== '' && $dept !== '' && mb_!str_contains($dept, $tE)) {
+    if ($tE !== '' && $dept !== '' && !str_contains($dept, $tE)) {
         $dept = trim($dept . ' ' . $tE);
     }
     $phone = trim((string)($m['phone'] ?? $m['mobile'] ?? $m['tel'] ?? ''));
@@ -439,7 +439,7 @@ foreach ($team as $m) {
     $purl = $photoUrl($m);
     $initial = mb_strtoupper(mb_substr($name, 0, 1));
      
-    $sexRaw = (((string)($m['gender'] ?? $m['sex'] ?? '')) |> trim(...) |> strtolower(...));
+    $sexRaw = strtolower(trim((string) ($m['gender'] ?? $m['sex'] ?? '')));
     $sexSym = '';
     if ($sexRaw !== '') {
         if (preg_match('/^(m|male|man|boy)/', $sexRaw)) $sexSym = '♂';

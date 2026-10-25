@@ -1,3 +1,16 @@
+5.2.14 (2026-10-25) — Vikram/Shaka Samvat pre-Chaitra rollover (isPreChaitra); Scriptable 8.3.4; PHP mitti parity
+
+5.2.13 (2026-10-25) — Markets % refs + MCX/FX hours; Choghadiya mitti (rashiIdx+1)%12; Scriptable 8.3.3
+
+5.2.12 (2026-10-25) — Fix directory print HTTP 500
+- tools/print_directory.php: invalid mb_!str_contains → !str_contains
+- Removed experimental |> pipe chains (classic strtolower(trim()))
+- blood_report.php / janam_patri.php pipe cleanup
+
+5.2.11 (2026-10-25) — Markets: Last day / month / year columns; next open IST when closed
+- Yahoo range 1y; lastDay/lastMonth/lastYear per instrument
+- Closed status: "Markets will open on Ddd, dd-mm-yyyy @ HH:MM hours (IST)"
+
 5.2.10 (2026-10-25) — Markets: 7-day closes, trading hours, Markets closed status
 - Yahoo range 1mo; last 7 daily closes on FX/bullion/commodity rows
 - Session clock IST (MCX hours); status chip Markets closed when session off

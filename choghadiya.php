@@ -254,6 +254,60 @@ function chog_tithi_at(\DateTimeInterface $date): array
     ];
 }
 
+/**
+ * Approximate Hindu lunar month (Amanta-style) from sidereal solar longitude.
+ * Month index uses (rashiIdx + 1) % 12 so Vrishabha sun maps to Jyeshtha, etc.
+ *
+ * @return array{monthIdx:int,month:string,monthHi:string,paksha:string,full:string,fullHi:string,vikram:int,shaka:int}
+ */
+function chog_hindu_mitti(\DateTimeInterface $date, int $tithiN): array
+{
+    $monthsEn = ['Chaitra','Vaishakha','Jyeshtha','Ashadha','Shravana','Bhadrapada','Ashwin','Kartika','Margashirsha','Pausha','Magha','Phalguna'];
+    $monthsHi = ['चैत्र','वैशाख','ज्येष्ठ','आषाढ़','श्रावण','भाद्रपद','अश्विन','कार्तिक','मार्गशीर्ष','पौष','माघ','फाल्गुन'];
+    // Lahiri-ish ayanamsha approx
+    $jd = $date->getTimestamp() / 86400 + 2440587.5;
+    $T = ($jd - 2451545.0) / 36525.0;
+    $ayan = 23.85 + 1.396 * $T;
+    $sLon = chog_sun_lon($date);
+    $sid = fmod($sLon - $ayan + 360.0, 360.0);
+    $rashiIdx = (int) floor($sid / 30.0);
+    if ($rashiIdx < 0) {
+        $rashiIdx = 0;
+    }
+    if ($rashiIdx > 11) {
+        $rashiIdx = 11;
+    }
+    $mIdx = ($rashiIdx + 1) % 12; // fixed correspondence (Scriptable 8.3.4)
+    $isNewYear = ($mIdx === 0 && $tithiN <= 15);
+    $tz = chog_tz();
+    $local = \DateTimeImmutable::createFromInterface($date)->setTimezone($tz);
+    $y = (int) $local->format('Y');
+    // JS months are 0-based: Jan=0, Feb=1, Mar=2. PHP format('n') is 1-based: Jan=1, Mar=3.
+    // isPreChaitra: before Chaitra Shukla Pratipada (typically Mar/Apr) → subtract 1 from Samvat.
+    $mo0 = (int) $local->format('n') - 1; // 0-based month to match Scriptable istParts().month
+    $isPreChaitra = ($mo0 < 2) || ($mo0 === 2 && !$isNewYear);
+    $vikram = $y + 57 - ($isPreChaitra ? 1 : 0);
+    $shaka = $y - 78 - ($isPreChaitra ? 1 : 0);
+    $pak = $tithiN <= 15 ? 'Shukla' : 'Krishna';
+    $pakHi = $tithiN <= 15 ? 'शुक्ल पक्ष' : 'कृष्ण पक्ष';
+    $mEn = $monthsEn[$mIdx];
+    $mHi = $monthsHi[$mIdx];
+    return [
+        'monthIdx' => $mIdx,
+        'month' => $mEn,
+        'monthHi' => $mHi,
+        'paksha' => $pak,
+        'pakshaHi' => $pakHi,
+        'full' => $mEn . ' ' . $pak,
+        'fullHi' => $mHi . ' ' . $pakHi,
+        'vikram' => $vikram,
+        'shaka' => $shaka,
+        'samvat' => 'Vikram Samvat ' . $vikram . ' · Shaka ' . $shaka,
+        'samvatHi' => 'विक्रम संवत ' . $vikram . ' · शक संवत ' . $shaka,
+    ];
+}
+
+
 // Day sequences by weekday (0=Sun … 6=Sat) — classic Choghadiya
 const CHOG_DAY_SEQ = [
     0 => ['Udveg', 'Char', 'Labh', 'Amrit', 'Kaal', 'Shubh', 'Rog', 'Udveg'],
@@ -534,7 +588,7 @@ function chog_payload(?\DateTimeImmutable $forDay = null, ?\DateTimeImmutable $c
         'region' => 'East Delhi / Delhi NCR, India',
         'lat' => round($lat, 5),
         'lon' => round($lon, 5),
-        'version' => '8.3.0',
+        'version' => '8.3.4',
         // Scriptable 6.3: top-level date MUST be YYYY-MM-DD string
         'date' => $iso,
         'dateStr' => $iso,
@@ -562,6 +616,7 @@ function chog_payload(?\DateTimeImmutable $forDay = null, ?\DateTimeImmutable $c
             'setIso' => $sun['set']->format('c'),
         ],
         'tithi' => $tithi,
+        'mitti' => chog_hindu_mitti($sameDay ? $clockNow : $forDay, (int)($tithi['n'] ?? $tithi['number'] ?? 1)),
         'rahu' => $rahu,
         'current' => $current,
         'day' => $dayRows,

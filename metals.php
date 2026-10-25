@@ -1,5 +1,5 @@
 <?php
-// Version: 5.2.10 — Markets: 7-day closes, session hours, Markets closed chip
+// Version: 5.2.13 — Markets: % under refs, 2dp prices, MCX/FX session row, merged clock
 /**
  * Google Finance–style markets board + Scriptable/KWGT JSON API
  * Endpoint: /metals.php | /metals.php?format=json | /metals.php?embed=1
@@ -166,33 +166,88 @@ function metals_parse_yahoo(?string $raw): ?array
     $chg   = $prev > 0 ? (($price - $prev) / $prev) * 100.0 : 0.0;
     $chgAbs = $price - $prev;
 
-    $history = [];
+    // Build chronological close series
+    $series = [];
     $ts = $result['timestamp'] ?? [];
     $closes = $result['indicators']['quote'][0]['close'] ?? [];
     if (is_array($ts) && is_array($closes)) {
         $n = min(count($ts), count($closes));
-        $pairs = [];
         for ($i = 0; $i < $n; $i++) {
             $c = $closes[$i] ?? null;
             if ($c === null || !is_numeric($c)) {
                 continue;
             }
-            $pairs[] = [
+            $series[] = [
+                'ts'    => (int) $ts[$i],
                 'date'  => gmdate('Y-m-d', (int) $ts[$i]),
-                'close' => round((float) $c, 6),
+                'close' => (float) $c,
             ];
         }
-        if ($pairs !== []) {
-            $history = array_slice($pairs, -7);
-        }
     }
+
+    $refs = metals_ref_closes($series, $price, $prev);
 
     return [
         'price'     => $price,
         'changePct' => round($chg, 2),
         'changeAbs' => round($chgAbs, 4),
         'prev'      => $prev,
-        'history'   => $history,
+        'lastDay'   => $refs['lastDay'],
+        'lastMonth' => $refs['lastMonth'],
+        'lastYear'  => $refs['lastYear'],
+        'history'   => $refs, // back-compat alias
+    ];
+}
+
+/**
+ * Pick closes nearest to 1 day / ~1 month / ~1 year ago from a daily series.
+ *
+ * @param list<array{ts:int,date:string,close:float}> $series
+ * @return array{lastDay:?float,lastMonth:?float,lastYear:?float}
+ */
+function metals_ref_closes(array $series, float $price, float $prevClose): array
+{
+    $lastDay = $prevClose > 0 ? $prevClose : null;
+    $lastMonth = null;
+    $lastYear = null;
+    if ($series === []) {
+        return ['lastDay' => $lastDay, 'lastMonth' => $lastMonth, 'lastYear' => $lastYear];
+    }
+    $lastTs = (int) $series[count($series) - 1]['ts'];
+    // Prefer previous bar as last day if available
+    if (count($series) >= 2) {
+        $lastDay = (float) $series[count($series) - 2]['close'];
+    }
+    $targetM = $lastTs - 30 * 86400;
+    $targetY = $lastTs - 365 * 86400;
+    $bestM = null;
+    $bestY = null;
+    $bestMd = PHP_INT_MAX;
+    $bestYd = PHP_INT_MAX;
+    foreach ($series as $row) {
+        $ts = (int) $row['ts'];
+        $dM = abs($ts - $targetM);
+        $dY = abs($ts - $targetY);
+        if ($dM < $bestMd) {
+            $bestMd = $dM;
+            $bestM = (float) $row['close'];
+        }
+        if ($dY < $bestYd) {
+            $bestYd = $dY;
+            $bestY = (float) $row['close'];
+        }
+    }
+    // Only accept if within ~5 days of target for month, ~14 for year
+    if ($bestMd <= 5 * 86400) {
+        $lastMonth = $bestM;
+    }
+    if ($bestYd <= 14 * 86400) {
+        $lastYear = $bestY;
+    }
+    return [
+        'lastDay'   => $lastDay,
+        'lastMonth' => $lastMonth,
+        'lastYear'  => $lastYear,
     ];
 }
 
@@ -200,7 +255,7 @@ function metals_parse_yahoo(?string $raw): ?array
  * MCX-oriented session clock (Asia/Kolkata).
  * Mon–Fri 09:00–23:30 IST; Sat 09:00–14:00; Sun closed.
  *
- * @return array{open:bool,label:string,labelHi:string,hours:string,hoursHi:string}
+ * @return array{open:bool,label:string,labelHi:string,hours:string,hoursHi:string,nextOpen:string,nextOpenHi:string}
  */
 function metals_session_info(): array
 {
@@ -208,22 +263,116 @@ function metals_session_info(): array
     $now = new \DateTimeImmutable('now', $tz);
     $dow = (int) $now->format('w');
     $mins = ((int) $now->format('G')) * 60 + (int) $now->format('i');
-    $openMins = 9 * 60;
-    $closeMins = 23 * 60 + 30;
-    $satClose = 14 * 60;
-    $open = false;
+
+    // MCX (bullion + base metals): Mon–Fri 09:00–23:30; Sat 09:00–14:00; Sun closed
+    $mcxOpen = false;
     if ($dow >= 1 && $dow <= 5) {
-        $open = $mins >= $openMins && $mins < $closeMins;
+        $mcxOpen = $mins >= 9 * 60 && $mins < 23 * 60 + 30;
     } elseif ($dow === 6) {
-        $open = $mins >= $openMins && $mins < $satClose;
+        $mcxOpen = $mins >= 9 * 60 && $mins < 14 * 60;
     }
+
+    // FX (INR crosses): nearly 24×5 — Sun 17:00 IST → Fri 17:00 IST (approx interbank)
+    $fxOpen = false;
+    if ($dow >= 1 && $dow <= 4) {
+        $fxOpen = true; // Mon–Thu continuous after Sunday open
+    } elseif ($dow === 5) {
+        $fxOpen = $mins < 17 * 60; // Friday until ~17:00 IST
+    } elseif ($dow === 0) {
+        $fxOpen = $mins >= 17 * 60; // Sunday from ~17:00 IST
+    }
+
+    $anyOpen = $mcxOpen || $fxOpen;
+    $nextMcx = metals_next_open($now); // existing MCX next-open helper
+    $nextMcxStr = $nextMcx->format('D, d-m-Y') . ' @ ' . $nextMcx->format('H:i') . ' hours (IST)';
+
+    // Next FX open
+    $fxNext = $now;
+    if ($fxOpen) {
+        // next close then reopen: after Fri 17:00 → Sun 17:00
+        if ($dow === 5 && $mins < 17 * 60) {
+            $fxNextLabel = 'Open now · closes Fri 17:00 IST';
+        } else {
+            $fxNextLabel = 'Open now';
+        }
+    } else {
+        if ($dow === 5 || $dow === 6) {
+            // after Fri close or Sat → Sunday 17:00
+            $days = $dow === 5 ? 2 : 1;
+            $fxNext = $now->modify('+' . $days . ' day')->setTime(17, 0, 0);
+        } elseif ($dow === 0 && $mins < 17 * 60) {
+            $fxNext = $now->setTime(17, 0, 0);
+        } else {
+            $fxNext = $now->modify('next sunday')->setTime(17, 0, 0);
+        }
+        $fxNextLabel = 'FX will open on ' . $fxNext->format('D, d-m-Y') . ' @ ' . $fxNext->format('H:i') . ' hours (IST)';
+    }
+
+    if ($mcxOpen && $fxOpen) {
+        $label = 'Markets open · MCX & FX';
+        $labelHi = 'बाज़ार खुला · MCX व FX';
+    } elseif ($mcxOpen) {
+        $label = 'MCX open · ' . $fxNextLabel;
+        $labelHi = 'MCX खुला · FX अलग सत्र';
+    } elseif ($fxOpen) {
+        $label = 'FX open · MCX will open on ' . $nextMcxStr;
+        $labelHi = 'FX खुला · MCX ' . $nextMcx->format('d-m-Y H:i') . ' IST';
+    } else {
+        $label = 'MCX will open on ' . $nextMcxStr . ' · ' . $fxNextLabel;
+        $labelHi = 'MCX खुलेगा ' . $nextMcx->format('d-m-Y H:i') . ' · FX अलग';
+    }
+
     return [
-        'open' => $open,
-        'label' => $open ? 'Markets open' : 'Markets closed',
-        'labelHi' => $open ? 'बाज़ार खुला' : 'बाज़ार बंद',
-        'hours' => 'MCX ≈ Mon–Fri 09:00–23:30 IST · Sat 09:00–14:00 · Sun closed · FX nearly 24×5',
-        'hoursHi' => 'MCX ≈ सोम–शुक्र 09:00–23:30 IST · शनि 09:00–14:00 · रवि बंद · FX लगभग 24×5',
+        'open' => $anyOpen,
+        'mcxOpen' => $mcxOpen,
+        'fxOpen' => $fxOpen,
+        'label' => $label,
+        'labelHi' => $labelHi,
+        'hours' => 'MCX Mon–Fri 09:00–23:30 · Sat 09:00–14:00 · Sun closed · FX ≈ Sun 17:00–Fri 17:00 IST',
+        'hoursHi' => 'MCX सोम–शुक्र 09:00–23:30 · शनि 09:00–14:00 · रवि बंद · FX ≈ रवि 17:00–शुक्र 17:00 IST',
+        'nextOpen' => $nextMcxStr,
+        'nextOpenHi' => $nextMcx->format('d-m-Y') . ' @ ' . $nextMcx->format('H:i') . ' बजे (IST)',
+        'nextOpenIso' => $nextMcx->format('c'),
+        'fxNextLabel' => $fxNextLabel,
     ];
+}
+
+function metals_next_open(\DateTimeImmutable $now): \DateTimeImmutable
+{
+    $tz = $now->getTimezone();
+    $candidate = $now;
+    for ($i = 0; $i < 10; $i++) {
+        $dow = (int) $candidate->format('w');
+        $mins = ((int) $candidate->format('G')) * 60 + (int) $candidate->format('i');
+        if ($dow >= 1 && $dow <= 5) {
+            if ($mins < 9 * 60) {
+                return $candidate->setTime(9, 0, 0);
+            }
+            if ($mins < 23 * 60 + 30) {
+                // currently open — next open is tomorrow 09:00 (or Mon if Fri after close handled below)
+                $candidate = $candidate->modify('+1 day')->setTime(9, 0, 0);
+                continue;
+            }
+            // after close → next weekday 09:00
+            $candidate = $candidate->modify('+1 day')->setTime(9, 0, 0);
+            continue;
+        }
+        if ($dow === 6) {
+            if ($mins < 9 * 60) {
+                return $candidate->setTime(9, 0, 0);
+            }
+            if ($mins < 14 * 60) {
+                $candidate = $candidate->modify('+1 day')->setTime(9, 0, 0);
+                continue;
+            }
+            // Saturday after close → Monday 09:00
+            $candidate = $candidate->modify('+2 day')->setTime(9, 0, 0);
+            continue;
+        }
+        // Sunday → Monday 09:00
+        $candidate = $candidate->modify('+1 day')->setTime(9, 0, 0);
+    }
+    return $now->modify('next monday')->setTime(9, 0, 0);
 }
 
 function metals_build_payload(array $commodities, array $fx, string $status): array
@@ -249,7 +398,9 @@ function metals_build_payload(array $commodities, array $fx, string $status): ar
             'mcxLot'     => $entry['mcxLot'] ?? DELHI_EX_GST_BASE[$key]['mcxLot'],
             'currency'   => 'INR',
             'tint'       => $meta['tint'],
-            'history'    => array_values(array_slice(is_array($entry['history'] ?? null) ? $entry['history'] : [], -7)),
+            'lastDay'    => isset($entry['lastDay']) ? $entry['lastDay'] : null,
+            'lastMonth'  => isset($entry['lastMonth']) ? $entry['lastMonth'] : null,
+            'lastYear'   => isset($entry['lastYear']) ? $entry['lastYear'] : null,
         ];
     }
 
@@ -272,7 +423,9 @@ function metals_build_payload(array $commodities, array $fx, string $status): ar
             'changeAbs' => round($price - $prev, 4),
             'unit'      => '1 ' . $meta['base'],
             'currency'  => 'INR',
-            'history'   => array_values(array_slice(is_array($row['history'] ?? null) ? $row['history'] : [], -7)),
+            'lastDay'   => isset($row['lastDay']) ? $row['lastDay'] : null,
+            'lastMonth' => isset($row['lastMonth']) ? $row['lastMonth'] : null,
+            'lastYear'  => isset($row['lastYear']) ? $row['lastYear'] : null,
         ];
     }
 
@@ -332,15 +485,15 @@ function metals_get_market(bool $force = false): array
     $liveHits = 0;
 
     $endpoints = [
-        'USDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/USDINR=X?interval=1d&range=1mo',
-        'EURINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/EURINR=X?interval=1d&range=1mo',
-        'GBPINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/GBPINR=X?interval=1d&range=1mo',
-        'AEDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/AEDINR=X?interval=1d&range=1mo',
-        'CNYINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/CNYINR=X?interval=1d&range=1mo',
-        'gold_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=1mo',
-        'plat_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/PL=F?interval=1d&range=1mo',
-        'silv_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=1mo',
-        'copp_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/HG=F?interval=1d&range=1mo',
+        'USDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/USDINR=X?interval=1d&range=1y',
+        'EURINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/EURINR=X?interval=1d&range=1y',
+        'GBPINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/GBPINR=X?interval=1d&range=1y',
+        'AEDINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/AEDINR=X?interval=1d&range=1y',
+        'CNYINR' => 'https://query1.finance.yahoo.com/v8/finance/chart/CNYINR=X?interval=1d&range=1y',
+        'gold_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=1y',
+        'plat_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/PL=F?interval=1d&range=1y',
+        'silv_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/SI=F?interval=1d&range=1y',
+        'copp_f' => 'https://query1.finance.yahoo.com/v8/finance/chart/HG=F?interval=1d&range=1y',
         'frank'  => 'https://api.frankfurter.app/latest?from=USD&to=INR,EUR,GBP,CNY',
     ];
 
@@ -351,9 +504,9 @@ function metals_get_market(bool $force = false): array
         if ($q && $q['price'] > 0) {
             $fxWork[$pair]['price']  = $q['price'];
             $fxWork[$pair]['change'] = $q['changePct'];
-            if (!empty($q['history'])) {
-                $fxWork[$pair]['history'] = $q['history'];
-            }
+            $fxWork[$pair]['lastDay'] = $q['lastDay'] ?? null;
+            $fxWork[$pair]['lastMonth'] = $q['lastMonth'] ?? null;
+            $fxWork[$pair]['lastYear'] = $q['lastYear'] ?? null;
             $liveHits++;
         }
     }
@@ -379,15 +532,15 @@ function metals_get_market(bool $force = false): array
         if ($calc > 80000 && $calc < 250000) {
             $working['gold']['basePrice'] = $calc;
             $working['gold']['change']    = $goldQ['changePct'];
-            if (!empty($goldQ['history'])) {
+            if ($goldQ !== null) {
                 $usd = (float)($fxWork['USDINR']['price'] ?? 83);
-                $working['gold']['history'] = array_map(static function ($h) use ($usd) {
-                    $c = (float)($h['close'] ?? 0);
-                    // USD/oz → INR per 10g ≈ price * USDINR * (10/31.1034768)
-                    $h['close'] = round($c * $usd * (10.0 / 31.1034768), 0);
-                    $h['unit'] = 'INR/10g';
-                    return $h;
-                }, $goldQ['history']);
+                $conv = static function ($v) use ($usd) {
+                    if ($v === null || !is_numeric($v)) { return null; }
+                    return round(((float) $v) * $usd * (10.0 / 31.1034768), 0);
+                };
+                $working['gold']['lastDay'] = $conv($goldQ['lastDay'] ?? null);
+                $working['gold']['lastMonth'] = $conv($goldQ['lastMonth'] ?? null);
+                $working['gold']['lastYear'] = $conv($goldQ['lastYear'] ?? null);
             }
             $liveHits++;
         }
@@ -399,14 +552,15 @@ function metals_get_market(bool $force = false): array
         if ($calc > 20000 && $calc < 120000) {
             $working['platinum']['basePrice'] = $calc;
             $working['platinum']['change']    = $platQ['changePct'];
-            if (!empty($platQ['history'])) {
+            if ($platQ !== null) {
                 $usd = (float)($fxWork['USDINR']['price'] ?? 83);
-                $working['platinum']['history'] = array_map(static function ($h) use ($usd) {
-                    $c = (float)($h['close'] ?? 0);
-                    $h['close'] = round($c * $usd * (10.0 / 31.1034768), 0);
-                    $h['unit'] = 'INR/10g';
-                    return $h;
-                }, $platQ['history']);
+                $conv = static function ($v) use ($usd) {
+                    if ($v === null || !is_numeric($v)) { return null; }
+                    return round(((float) $v) * $usd * (10.0 / 31.1034768), 0);
+                };
+                $working['platinum']['lastDay'] = $conv($platQ['lastDay'] ?? null);
+                $working['platinum']['lastMonth'] = $conv($platQ['lastMonth'] ?? null);
+                $working['platinum']['lastYear'] = $conv($platQ['lastYear'] ?? null);
             }
             $liveHits++;
         }
@@ -418,15 +572,15 @@ function metals_get_market(bool $force = false): array
         if ($calc > 120000 && $calc < 450000) {
             $working['silver']['basePrice'] = $calc;
             $working['silver']['change']    = $silvQ['changePct'];
-            if (!empty($silvQ['history'])) {
+            if ($silvQ !== null) {
                 $usd = (float)($fxWork['USDINR']['price'] ?? 83);
-                $working['silver']['history'] = array_map(static function ($h) use ($usd) {
-                    $c = (float)($h['close'] ?? 0);
-                    // USD/oz → INR/kg ≈ price * USDINR * (1000/31.1034768)
-                    $h['close'] = round($c * $usd * (1000.0 / 31.1034768), 0);
-                    $h['unit'] = 'INR/kg';
-                    return $h;
-                }, $silvQ['history']);
+                $conv = static function ($v) use ($usd) {
+                    if ($v === null || !is_numeric($v)) { return null; }
+                    return round(((float) $v) * $usd * (1000.0 / 31.1034768), 0);
+                };
+                $working['silver']['lastDay'] = $conv($silvQ['lastDay'] ?? null);
+                $working['silver']['lastMonth'] = $conv($silvQ['lastMonth'] ?? null);
+                $working['silver']['lastYear'] = $conv($silvQ['lastYear'] ?? null);
             }
             $liveHits++;
         }
@@ -439,14 +593,24 @@ function metals_get_market(bool $force = false): array
             $working['copper']['basePrice'] = $calc;
             $working['brass']['basePrice']  = round($calc * 0.42, 2);
             $working['copper']['change']    = $coppQ['changePct'];
-            if (!empty($coppQ['history'])) { $working['copper']['history'] = $coppQ['history']; }
+            if ($coppQ !== null) {
+                $usd = (float)($fxWork['USDINR']['price'] ?? 83);
+                $conv = static function ($v) use ($usd) {
+                    if ($v === null || !is_numeric($v)) { return null; }
+                    // USD/lb → INR/kg approx
+                    return round(((float) $v) * $usd * 2.20462, 2);
+                };
+                $working['copper']['lastDay'] = $conv($coppQ['lastDay'] ?? null);
+                $working['copper']['lastMonth'] = $conv($coppQ['lastMonth'] ?? null);
+                $working['copper']['lastYear'] = $conv($coppQ['lastYear'] ?? null);
+            }
             $working['brass']['change']     = $coppQ['changePct'];
             $liveHits++;
         }
     }
 
     $session = metals_session_info();
-    if (!$session['open']) {
+    if (empty($session['mcxOpen']) && empty($session['fxOpen'])) {
         $status = 'closed';
     } else {
         $status = $liveHits >= 4 ? 'live' : ($liveHits > 0 ? 'partial' : 'cached');
@@ -528,7 +692,7 @@ $t = [
         'incl' => 'Incl. GST', 'ex' => 'Ex-GST', 'asof' => 'Market time',
         'refresh' => 'Refresh', 'json' => 'JSON', 'live' => 'Live',
         'partial' => 'Partial', 'cached' => 'Cached', 'closed' => 'Markets closed',
-        'hoursTitle' => 'Trading hours', 'hist' => 'Last 7 closes',
+        'hoursTitle' => 'Trading hours', 'lastDay' => 'Last day', 'lastMonth' => 'Last month', 'lastYear' => 'Last year',
         'price' => 'Price', 'change' => 'Change', 'unit' => 'Unit',
     ],
     'hi' => [
@@ -539,7 +703,7 @@ $t = [
         'incl' => 'GST सहित', 'ex' => 'बिना GST', 'asof' => 'बाज़ार समय',
         'refresh' => 'रिफ्रेश', 'json' => 'JSON', 'live' => 'लाइव',
         'partial' => 'आंशिक', 'cached' => 'कैश', 'closed' => 'बाज़ार बंद',
-        'hoursTitle' => 'व्यापार समय', 'hist' => 'पिछले 7 बंद भाव',
+        'hoursTitle' => 'व्यापार समय', 'lastDay' => 'कल', 'lastMonth' => 'गत माह', 'lastYear' => 'गत वर्ष',
         'price' => 'मूल्य', 'change' => 'परिवर्तन', 'unit' => 'इकाई',
     ],
 ][$lang];
@@ -587,8 +751,11 @@ if (!$session['open'] && $statusKey === 'live') {
     $statusKey = 'closed';
 }
 $statusLbl = $t[$statusKey] ?? $t['cached'];
-if ($statusKey === 'closed') {
-    $statusLbl = $t['closed'] ?? 'Markets closed';
+if ($statusKey === 'closed' || empty($session['open'])) {
+    $statusKey = 'closed';
+    $statusLbl = $lang === 'hi'
+        ? (string)($session['labelHi'] ?? ($t['closed'] ?? 'बाज़ार बंद'))
+        : (string)($session['label'] ?? ($t['closed'] ?? 'Markets closed'));
 }
 $asOf      = ($data['formattedTime'] ?? '') . ' IST · ' . ($data['formattedDate'] ?? '');
 $hoursLine = $lang === 'hi' ? (string)($session['hoursHi'] ?? $session['hours'] ?? '') : (string)($session['hours'] ?? '');
@@ -633,7 +800,7 @@ html[data-theme="dark"] .chip.closed{background:#334155;color:#cbd5e1}
 .hist span b{color:var(--ink);font-weight:700;margin-left:3px}
 
 html[data-theme="dark"] .chip.partial{background:rgba(180,83,9,.25);color:#fbbf24}
-.asof{font-size:12px;color:var(--muted);margin:0 0 14px;font-variant-numeric:tabular-nums}
+.asof-inline{font-variant-numeric:tabular-nums;opacity:.9}.hours-detail{opacity:.85}.hours-bar{flex-wrap:wrap}.px-stack{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.px-stack .pct{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}.px-stack .pct.up{color:var(--up)}.px-stack .pct.down{color:var(--down)}.px-stack .pct.flat{color:var(--flat)}.ref-stack{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.ref-stack .ref-px{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--muted)}.ref-stack .ref-pct{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}.ref-stack .ref-pct.up{color:var(--up)}.ref-stack .ref-pct.down{color:var(--down)}.ref-stack .ref-pct.flat{color:var(--flat)}.ref-stack.empty .ref-px,.ref-stack.empty .ref-pct{opacity:.35}
 .mkt-sec{background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
 .mkt-sec-hd{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
 .mkt-sec-hd .ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:18px;flex:none}
@@ -645,9 +812,11 @@ html[data-theme="dark"] .chip.partial{background:rgba(180,83,9,.25);color:#fbbf2
 html[data-theme="dark"] .mkt-sec.fx .ico{background:linear-gradient(135deg,#1e3a5f,#172554)}
 html[data-theme="dark"] .mkt-sec.bullion .ico{background:linear-gradient(135deg,#422006,#451a03)}
 html[data-theme="dark"] .mkt-sec.commodity .ico{background:linear-gradient(135deg,#431407,#7c2d12)}
-.mkt-cols{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(100px,.9fr) minmax(110px,1fr);gap:8px;padding:8px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 65%,var(--card))}
-.mkt-cols span:nth-child(2),.mkt-cols span:nth-child(3){text-align:right}
-.mkt-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(100px,.9fr) minmax(110px,1fr);gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);position:relative;transition:background .12s ease}
+.mkt-cols{display:grid;grid-template-columns:minmax(140px,1.6fr) minmax(100px,.9fr) minmax(88px,.8fr) minmax(88px,.8fr) minmax(88px,.8fr);gap:6px;padding:8px 14px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 65%,var(--card))}
+.mkt-cols span:not(:first-child){text-align:right}
+.mkt-row{display:grid;grid-template-columns:minmax(140px,1.6fr) minmax(100px,.9fr) minmax(88px,.8fr) minmax(88px,.8fr) minmax(88px,.8fr);gap:6px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);position:relative;transition:background .12s ease}
+.mkt-row .ref{text-align:right;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--muted)}
+.mkt-row .ref.empty{opacity:.35}
 .mkt-row:last-child{border-bottom:none}
 .mkt-row:hover{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 .mkt-row::before{content:"";position:absolute;left:0;top:18%;bottom:18%;width:3px;border-radius:0 3px 3px 0;background:var(--row-accent,transparent);opacity:.9}
@@ -663,11 +832,16 @@ html[data-theme="dark"] .mkt-sec.commodity .ico{background:linear-gradient(135de
 .foot{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-top:8px;padding:12px 4px;font-size:11.5px;color:var(--muted)}
 .foot a{color:var(--accent);text-decoration:none;font-weight:600}
 .foot code{font-size:10.5px;opacity:.85;word-break:break-all}
-@media (max-width:560px){
+@media (max-width:720px){
   .mkt-cols{display:none}
-  .mkt-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"sym px" "sym ch";gap:2px 10px;padding:12px 14px 12px 16px}
+  .mkt-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"sym px" "sym ch" "ref ref";gap:4px 10px;padding:12px 14px 12px 16px}
   .mkt-row .sym{grid-area:sym}.mkt-row .px{grid-area:px;font-size:14px}.mkt-row .ch{grid-area:ch;font-size:11.5px;padding:3px 7px}
+  .mkt-row .ref{display:inline;font-size:11px;margin-right:8px}
+  .mkt-row .ref::before{content:attr(data-lbl) " ";font-size:9px;text-transform:uppercase;opacity:.7}
+  .mkt-row .refs-mobile{grid-area:ref;display:flex;flex-wrap:wrap;gap:4px 10px}
 }
+@media (min-width:721px){ .mkt-row .refs-mobile{display:contents} }
+
 <?= $embed ? 'body{min-height:auto;background:transparent}.wrap{padding:4px 2px 12px}.top h1,.top .sub{display:none!important}.top{margin-bottom:6px}' : '' ?>
 </style>
 </head>
@@ -686,7 +860,12 @@ html[data-theme="dark"] .mkt-sec.commodity .ico{background:linear-gradient(135de
       <a class="chip ghost" href="?<?= $embed ? 'embed=1&' : '' ?>theme=<?= htmlspecialchars($theme, ENT_QUOTES, 'UTF-8') ?>&lang=<?= $lang === 'hi' ? 'en' : 'hi' ?>"><?= $lang === 'hi' ? 'EN' : 'हिंदी' ?></a>
     </div>
   </header>
-  <p class="asof"><?= htmlspecialchars($t['asof'] . ' · ' . $asOf, ENT_QUOTES, 'UTF-8') ?></p>
+  <div class="hours-bar <?= !empty($session['open']) ? 'open' : 'closed' ?>">
+    <span class="dot" aria-hidden="true"></span>
+    <strong><?= htmlspecialchars($lang === 'hi' ? (string)($session['labelHi'] ?? $statusLbl) : (string)($session['label'] ?? $statusLbl), ENT_QUOTES, 'UTF-8') ?></strong>
+    <span class="asof-inline"><?= htmlspecialchars($t['asof'] . ' · ' . $asOf, ENT_QUOTES, 'UTF-8') ?></span>
+    <span class="hours-detail"><?= htmlspecialchars($hoursLine ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+  </div>
 <?php
 $assetUi = [
     'USDINR' => ['color' => '#2563eb', 'letter' => '$'],
@@ -704,6 +883,32 @@ $assetUi = [
 ];
 $bullionKeys = ['gold', 'silver', 'platinum'];
 $commodityKeys = ['copper', 'brass', 'zinc', 'steel'];
+$pctOf = static function ($cur, $ref): array {
+    if ($ref === null || $ref === '' || !is_numeric($ref) || (float) $ref == 0.0) {
+        return ['—', 'flat', true];
+    }
+    if ($cur === null || !is_numeric($cur)) {
+        return ['—', 'flat', true];
+    }
+    $p = (((float) $cur - (float) $ref) / (float) $ref) * 100.0;
+    $cls = $p > 0.005 ? 'up' : ($p < -0.005 ? 'down' : 'flat');
+    $sign = $p > 0.005 ? '+' : '';
+    return [$sign . number_format($p, 2) . '%', $cls, false];
+};
+$money2 = static function ($v): array {
+    if ($v === null || $v === '' || !is_numeric($v)) {
+        return ['—', true];
+    }
+    return [gf_inr($v, 2), false];
+};
+$cols = static function (array $t, string $sec) {
+    return '<div class="mkt-cols" aria-hidden="true"><span>'
+        . htmlspecialchars($t[$sec] ?? $sec, ENT_QUOTES, 'UTF-8') . '</span><span>'
+        . htmlspecialchars($t['price'], ENT_QUOTES, 'UTF-8') . '</span><span>'
+        . htmlspecialchars($t['lastDay'] ?? 'Last day', ENT_QUOTES, 'UTF-8') . '</span><span>'
+        . htmlspecialchars($t['lastMonth'] ?? 'Last month', ENT_QUOTES, 'UTF-8') . '</span><span>'
+        . htmlspecialchars($t['lastYear'] ?? 'Last year', ENT_QUOTES, 'UTF-8') . '</span></div>';
+};
 ?>
 
   <section class="mkt-sec fx" aria-labelledby="sec-fx">
@@ -711,32 +916,31 @@ $commodityKeys = ['copper', 'brass', 'zinc', 'steel'];
       <div class="ico" aria-hidden="true">💱</div>
       <div><h2 id="sec-fx"><?= htmlspecialchars($t['fx'], ENT_QUOTES, 'UTF-8') ?></h2><p><?= htmlspecialchars($t['fxSub'], ENT_QUOTES, 'UTF-8') ?></p></div>
     </div>
-    <div class="mkt-cols" aria-hidden="true"><span><?= htmlspecialchars($t['fx'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['price'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['change'], ENT_QUOTES, 'UTF-8') ?></span></div>
+    <?= $cols($t, 'fx') ?>
 <?php foreach (FX_ORDER as $pair):
     $row = $data['fx'][$pair] ?? null;
     if (!$row) { continue; }
     $ui = $assetUi[$pair] ?? ['color' => '#64748b', 'letter' => '?'];
-    $chg = (float)($row['change'] ?? 0);
-    $abs = (float)($row['changeAbs'] ?? 0);
     $nm = $lang === 'hi' ? (string)($row['nameHi'] ?? $row['name'] ?? $pair) : (string)($row['name'] ?? $pair);
     $meta = $pair . ' · ' . (string)($row['symbol'] ?? 'INR');
+    $curPx = $row['price'] ?? 0;
+    [$pxLbl] = $money2($curPx);
+    [$ldPx, $ldE] = $money2($row['lastDay'] ?? null);
+    [$lmPx, $lmE] = $money2($row['lastMonth'] ?? null);
+    [$lyPx, $lyE] = $money2($row['lastYear'] ?? null);
+    [$ldPct, $ldCls] = $pctOf($curPx, $row['lastDay'] ?? null);
+    [$lmPct, $lmCls] = $pctOf($curPx, $row['lastMonth'] ?? null);
+    [$lyPct, $lyCls] = $pctOf($curPx, $row['lastYear'] ?? null);
 ?>
     <div class="mkt-row" role="row" style="--row-accent:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>">
       <div class="sym">
         <span class="badge" style="background:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ui['letter'], ENT_QUOTES, 'UTF-8') ?></span>
-        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div>
-
-<?php $hist = is_array($row['history'] ?? null) ? $row['history'] : []; if ($hist !== []): ?>
-        <div class="hist" title="<?= htmlspecialchars($t['hist'] ?? 'Last 7 closes', ENT_QUOTES, 'UTF-8') ?>">
-<?php foreach ($hist as $hrow): if (!is_array($hrow)) continue; $hd = (string)($hrow['date'] ?? ''); $hc = $hrow['close'] ?? null; if ($hc === null || !is_numeric($hc)) continue; ?>
-          <span><?= htmlspecialchars(strlen($hd) >= 10 ? substr($hd, 5) : $hd, ENT_QUOTES, 'UTF-8') ?><b><?= htmlspecialchars(((float)$hc >= 100 ? number_format((float)$hc, 0) : number_format((float)$hc, 2)), ENT_QUOTES, 'UTF-8') ?></b></span>
-<?php endforeach; ?>
-        </div>
-<?php endif; ?>
-        </div>
+        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div></div>
       </div>
-      <div class="px"><?= htmlspecialchars(gf_inr($row['price'] ?? 0, 4), ENT_QUOTES, 'UTF-8') ?></div>
-      <div class="ch <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg, $abs, 4), ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="px-stack"><div class="px"><?= htmlspecialchars($pxLbl, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $ldE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($ldPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($ldCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ldPct, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $lmE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($lmPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($lmCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($lmPct, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $lyE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($lyPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($lyCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($lyPct, ENT_QUOTES, 'UTF-8') ?></div></div>
     </div>
 <?php endforeach; ?>
   </section>
@@ -746,32 +950,32 @@ $commodityKeys = ['copper', 'brass', 'zinc', 'steel'];
       <div class="ico" aria-hidden="true">🏅</div>
       <div><h2 id="sec-bullion"><?= htmlspecialchars($t['bullion'], ENT_QUOTES, 'UTF-8') ?></h2><p><?= htmlspecialchars($t['bullionSub'], ENT_QUOTES, 'UTF-8') ?></p></div>
     </div>
-    <div class="mkt-cols" aria-hidden="true"><span><?= htmlspecialchars($t['bullion'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['price'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['change'], ENT_QUOTES, 'UTF-8') ?></span></div>
+    <?= $cols($t, 'bullion') ?>
 <?php foreach ($bullionKeys as $key):
     $row = $data['items'][$key] ?? null;
     if (!$row) { continue; }
     $ui = $assetUi[$key] ?? ['color' => '#64748b', 'letter' => '?'];
-    $chg = (float)($row['change'] ?? 0);
     $nm = $lang === 'hi' ? (string)($row['nameHi'] ?? $row['name'] ?? $key) : (string)($row['name'] ?? $key);
     $unit = (string)($row['unit'] ?? '');
     $meta = $t['incl'] . ' · ' . $unit . ' · GST ' . (int)($row['gstPct'] ?? 0) . '%';
+    $curPx = $row['totalPrice'] ?? 0;
+    [$pxLbl] = $money2($curPx);
+    [$ldPx, $ldE] = $money2($row['lastDay'] ?? null);
+    [$lmPx, $lmE] = $money2($row['lastMonth'] ?? null);
+    [$lyPx, $lyE] = $money2($row['lastYear'] ?? null);
+    [$ldPct, $ldCls] = $pctOf($curPx, $row['lastDay'] ?? null);
+    [$lmPct, $lmCls] = $pctOf($curPx, $row['lastMonth'] ?? null);
+    [$lyPct, $lyCls] = $pctOf($curPx, $row['lastYear'] ?? null);
 ?>
     <div class="mkt-row" role="row" style="--row-accent:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>">
       <div class="sym">
         <span class="badge" style="background:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ui['letter'], ENT_QUOTES, 'UTF-8') ?></span>
-        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div>
-
-<?php $hist = is_array($row['history'] ?? null) ? $row['history'] : []; if ($hist !== []): ?>
-        <div class="hist" title="<?= htmlspecialchars($t['hist'] ?? 'Last 7 closes', ENT_QUOTES, 'UTF-8') ?>">
-<?php foreach ($hist as $hrow): if (!is_array($hrow)) continue; $hd = (string)($hrow['date'] ?? ''); $hc = $hrow['close'] ?? null; if ($hc === null || !is_numeric($hc)) continue; ?>
-          <span><?= htmlspecialchars(strlen($hd) >= 10 ? substr($hd, 5) : $hd, ENT_QUOTES, 'UTF-8') ?><b><?= htmlspecialchars(((float)$hc >= 100 ? number_format((float)$hc, 0) : number_format((float)$hc, 2)), ENT_QUOTES, 'UTF-8') ?></b></span>
-<?php endforeach; ?>
-        </div>
-<?php endif; ?>
-        </div>
+        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div></div>
       </div>
-      <div class="px"><?= htmlspecialchars(gf_inr($row['totalPrice'] ?? 0, 0), ENT_QUOTES, 'UTF-8') ?></div>
-      <div class="ch <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg), ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="px-stack"><div class="px"><?= htmlspecialchars($pxLbl, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $ldE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($ldPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($ldCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ldPct, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $lmE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($lmPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($lmCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($lmPct, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $lyE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($lyPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($lyCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($lyPct, ENT_QUOTES, 'UTF-8') ?></div></div>
     </div>
 <?php endforeach; ?>
   </section>
@@ -781,33 +985,32 @@ $commodityKeys = ['copper', 'brass', 'zinc', 'steel'];
       <div class="ico" aria-hidden="true">🏗️</div>
       <div><h2 id="sec-cmdty"><?= htmlspecialchars($t['commodities'], ENT_QUOTES, 'UTF-8') ?></h2><p><?= htmlspecialchars($t['commoditiesSub'], ENT_QUOTES, 'UTF-8') ?></p></div>
     </div>
-    <div class="mkt-cols" aria-hidden="true"><span><?= htmlspecialchars($t['commodities'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['price'], ENT_QUOTES, 'UTF-8') ?></span><span><?= htmlspecialchars($t['change'], ENT_QUOTES, 'UTF-8') ?></span></div>
+    <?= $cols($t, 'commodities') ?>
 <?php foreach ($commodityKeys as $key):
     $row = $data['items'][$key] ?? null;
     if (!$row) { continue; }
     $ui = $assetUi[$key] ?? ['color' => '#64748b', 'letter' => '?'];
-    $chg = (float)($row['change'] ?? 0);
     $nm = $lang === 'hi' ? (string)($row['nameHi'] ?? $row['name'] ?? $key) : (string)($row['name'] ?? $key);
     $unit = (string)($row['unit'] ?? '');
     $meta = $t['incl'] . ' · ' . $unit . ' · GST ' . (int)($row['gstPct'] ?? 0) . '%';
-    $dec = in_array($key, ['copper', 'brass', 'zinc'], true) ? 2 : 0;
+    $curPx = $row['totalPrice'] ?? 0;
+    [$pxLbl] = $money2($curPx);
+    [$ldPx, $ldE] = $money2($row['lastDay'] ?? null);
+    [$lmPx, $lmE] = $money2($row['lastMonth'] ?? null);
+    [$lyPx, $lyE] = $money2($row['lastYear'] ?? null);
+    [$ldPct, $ldCls] = $pctOf($curPx, $row['lastDay'] ?? null);
+    [$lmPct, $lmCls] = $pctOf($curPx, $row['lastMonth'] ?? null);
+    [$lyPct, $lyCls] = $pctOf($curPx, $row['lastYear'] ?? null);
 ?>
     <div class="mkt-row" role="row" style="--row-accent:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>">
       <div class="sym">
         <span class="badge" style="background:<?= htmlspecialchars($ui['color'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ui['letter'], ENT_QUOTES, 'UTF-8') ?></span>
-        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div>
-
-<?php $hist = is_array($row['history'] ?? null) ? $row['history'] : []; if ($hist !== []): ?>
-        <div class="hist" title="<?= htmlspecialchars($t['hist'] ?? 'Last 7 closes', ENT_QUOTES, 'UTF-8') ?>">
-<?php foreach ($hist as $hrow): if (!is_array($hrow)) continue; $hd = (string)($hrow['date'] ?? ''); $hc = $hrow['close'] ?? null; if ($hc === null || !is_numeric($hc)) continue; ?>
-          <span><?= htmlspecialchars(strlen($hd) >= 10 ? substr($hd, 5) : $hd, ENT_QUOTES, 'UTF-8') ?><b><?= htmlspecialchars(((float)$hc >= 100 ? number_format((float)$hc, 0) : number_format((float)$hc, 2)), ENT_QUOTES, 'UTF-8') ?></b></span>
-<?php endforeach; ?>
-        </div>
-<?php endif; ?>
-        </div>
+        <div><div class="nm"><?= htmlspecialchars($nm, ENT_QUOTES, 'UTF-8') ?></div><div class="meta"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></div></div>
       </div>
-      <div class="px"><?= htmlspecialchars(gf_inr($row['totalPrice'] ?? 0, $dec), ENT_QUOTES, 'UTF-8') ?></div>
-      <div class="ch <?= gf_chg_class($chg) ?>"><?= htmlspecialchars(gf_chg_label($chg), ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="px-stack"><div class="px"><?= htmlspecialchars($pxLbl, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $ldE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($ldPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($ldCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($ldPct, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $lmE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($lmPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($lmCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($lmPct, ENT_QUOTES, 'UTF-8') ?></div></div>
+      <div class="ref-stack<?= $lyE ? ' empty' : '' ?>"><div class="ref-px"><?= htmlspecialchars($lyPx, ENT_QUOTES, 'UTF-8') ?></div><div class="ref-pct <?= htmlspecialchars($lyCls, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($lyPct, ENT_QUOTES, 'UTF-8') ?></div></div>
     </div>
 <?php endforeach; ?>
   </section>

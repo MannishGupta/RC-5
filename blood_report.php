@@ -55,13 +55,13 @@ function bg_lang(): string {
     if ($lang !== null) {
         return $lang;
     }
-    $q = (((string)($_GET['lang'] ?? '')) |> trim(...) |> strtolower(...));
+    $q = strtolower(trim((string)($_GET['lang'] ?? '')));
     if (in_array($q, ['en', 'en_in', 'english'], true)) {
         $lang = 'en';
     } elseif (in_array($q, ['hi', 'hi_in', 'hindi'], true)) {
         $lang = 'hi';
     } else {
-        $c = (((string)($_COOKIE['rc_lang'] ?? '')) |> trim(...) |> strtolower(...));
+        $c = strtolower(trim((string)($_COOKIE['rc_lang'] ?? '')));
         $lang = ($c === 'en') ? 'en' : 'hi';
     }
     if (!headers_sent()) {

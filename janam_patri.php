@@ -114,13 +114,13 @@ function jp_lang(): string {
     if ($lang !== null) {
         return $lang;
     }
-    $q = (((string)($_GET['lang'] ?? '')) |> trim(...) |> strtolower(...));
+    $q = strtolower(trim((string)($_GET['lang'] ?? '')));
     if ($q === 'en' || $q === 'en_in' || $q === 'english') {
         $lang = 'en';
     } elseif ($q === 'hi' || $q === 'hi_in' || $q === 'hindi') {
         $lang = 'hi';
     } else {
-        $c = (((string)($_COOKIE['jp_lang'] ?? '')) |> trim(...) |> strtolower(...));
+        $c = strtolower(trim((string)($_COOKIE['jp_lang'] ?? '')));
         $lang = ($c === 'en') ? 'en' : 'hi';
     }
     if (!headers_sent()) {
@@ -378,14 +378,14 @@ function jp_match_team_member(?string $slug, ?string $name, ?string $dob): ?arra
     if ($team === []) {
         return null;
     }
-    $slug = (((string)$slug) |> trim(...) |> strtolower(...));
+    $slug = strtolower(trim((string)$slug));
     $name = mb_strtolower(trim((string)$name), 'UTF-8');
     $dobN = jp_normalize_dob((string)$dob);
      
     if ($slug !== '') {
         foreach ($team as $m) {
             if (!is_array($m)) continue;
-            $s = (((string)($m['slug'] ?? $m['id'] ?? '')) |> trim(...) |> strtolower(...));
+            $s = strtolower(trim((string)($m['slug'] ?? $m['id'] ?? '')));
             if ($s !== '' && $s === $slug) {
                 return $m;
             }
@@ -420,7 +420,7 @@ function jp_match_team_member(?string $slug, ?string $name, ?string $dob): ?arra
 }
 
 function jp_profile_from_team(array $m): array {
-    $gender = (((string)($m['gender'] ?? 'male')) |> trim(...) |> strtolower(...));
+    $gender = strtolower(trim((string)($m['gender'] ?? 'male')));
     if (!in_array($gender, ['male', 'female'], true)) {
         $gender = 'male';
     }
@@ -2252,7 +2252,7 @@ function jp_ephemeral_profile(): ?array {
     $qPob = trim((string)($_GET['pob'] ?? $_GET['place'] ?? ''));
     $qGotra = trim((string)($_GET['gotra'] ?? ''));
     $qSlug = trim((string)($_GET['slug'] ?? $_GET['team_slug'] ?? ''));
-    $qGender = (((string)($_GET['gender'] ?? '')) |> trim(...) |> strtolower(...));
+    $qGender = strtolower(trim((string)($_GET['gender'] ?? '')));
     $qLat = trim((string)($_GET['lat'] ?? ''));
     $qLng = trim((string)($_GET['lng'] ?? ''));
 
@@ -2534,7 +2534,7 @@ function jp_footer(): void {
 
 function jp_save_profile(array $in): array {
     $name = trim((string)($in['name'] ?? ''));
-    $gender = (((string)($in['gender'] ?? '')) |> trim(...) |> strtolower(...));
+    $gender = strtolower(trim((string)($in['gender'] ?? '')));
     $dob = trim((string)($in['dob'] ?? ''));
     $tob = trim((string)($in['tob'] ?? '12:00'));
     $place = trim((string)($in['place'] ?? ''));
@@ -2673,7 +2673,7 @@ if ($action === 'api_import_team' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POS
             $errors[] = ($m['name'] ?? $key) . ' — missing Place of Birth';
             continue;
         }
-        $gender = (((string)($m['gender'] ?? 'male')) |> trim(...) |> strtolower(...));
+        $gender = strtolower(trim((string)($m['gender'] ?? 'male')));
         if (!in_array($gender, ['male', 'female'], true)) {
             $gender = 'male';
         }
@@ -2796,7 +2796,7 @@ if ($view === 'new' || $view === 'edit') {
     $qPob = trim((string)($_GET['pob'] ?? $_GET['place'] ?? ''));
     $qGotra = trim((string)($_GET['gotra'] ?? ''));
     $qSlug = trim((string)($_GET['slug'] ?? $_GET['team_slug'] ?? ''));
-    $qGender = (((string)($_GET['gender'] ?? '')) |> trim(...) |> strtolower(...));
+    $qGender = strtolower(trim((string)($_GET['gender'] ?? '')));
      
     if ($edit === null && $qSlug !== '') {
         foreach ($profiles as $_p) {
@@ -3252,7 +3252,7 @@ if ($view === 'patri') {
         'index' => true,
         'type' => 'profile',
     ]);
-    $patriTab = (((string)($_GET['tab'] ?? 'kundli')) |> trim(...) |> strtolower(...));
+    $patriTab = strtolower(trim((string)($_GET['tab'] ?? 'kundli')));
     if (!in_array($patriTab, ['kundli', 'dasha', 'sade', 'gochar', 'varga', 'strength', 'doshas'], true)) {
         $patriTab = 'kundli';
     }
